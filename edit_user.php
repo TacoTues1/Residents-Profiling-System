@@ -106,8 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_user'])) {
         if (mysqli_query($conn, $update)) {
             $action_desc = mysqli_real_escape_string($conn, "Captain updated user details for ID#$edit_id ($full_name)");
             mysqli_query($conn, "INSERT INTO logs (action) VALUES ('$action_desc')");
-            
-            // If updating own account in session
+
             if ($edit_id === (int)($_SESSION['user_id'] ?? 0)) {
                 $_SESSION['username'] = $username;
                 $_SESSION['role'] = $role;

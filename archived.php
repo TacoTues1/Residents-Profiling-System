@@ -15,7 +15,6 @@ if (!empty($_SESSION['toast_error'])) {
     unset($_SESSION['toast_error']);
 }
 
-// 1. DATA FETCHING (To replicate the background)
 $household_no = $_GET['household_no'] ?? '';
 $member_id = $_GET['id'] ?? '';
 $safe_hh_no = mysqli_real_escape_string($conn, $household_no);
@@ -26,21 +25,17 @@ if ($proof_col_check && mysqli_num_rows($proof_col_check) > 0) {
     $proof_col_exists = true;
 }
 
-// Fetch Household  Info for background
 $query_h = "SELECT * FROM households WHERE household_no = '$safe_hh_no'";
 $result_h = mysqli_query($conn, $query_h);
 $household = mysqli_fetch_assoc($result_h);
 
-// Fetch non-archived members for background table
 $query_m = "SELECT * FROM residents WHERE household_no = '$safe_hh_no' AND COALESCE(is_archived, 0) = 0 ORDER BY id ASC";
 $result_m = mysqli_query($conn, $query_m);
 
-// Fetch specific resident for the modal text
 $res_query = mysqli_query($conn, "SELECT first_name, last_name FROM residents WHERE id = '$member_id'");
 $res_data = mysqli_fetch_assoc($res_query);
 $full_name = ($res_data) ? $res_data['first_name'] . ' ' . $res_data['last_name'] : "Resident";
 
-// 2. HANDLE ARCHIVE POST
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirm_archive'])) {
     $m_id = mysqli_real_escape_string($conn, $_POST['id']);
     $h_no = mysqli_real_escape_string($conn, $_POST['household_no']);
@@ -121,17 +116,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirm_archive'])) {
             --text-gray: #64748b; --border-color: #e2e8f0; --main-bg: #f1f5f9;
         }
 
-        /* Replicating Household Page Background Styles */
         body { font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; background: var(--main-bg); overflow: hidden; }
         .sidebar { width: 300px; background: var(--sidebar-navy); color: white; display: flex; flex-direction: column; filter: blur(2px); }
         .main-container { flex: 1; overflow-y: auto; display: flex; flex-direction: column; filter: blur(2px); }
         .content-body { padding: 30px; opacity: 0.6; }
         .hh-card, .panel { background: white; border: 1px solid #e5e7eb; padding: 18px; border-radius: 20px; border: 1px solid var(--border-color); margin-bottom: 25px; }
-        
-        /* Modal Overlay Styles */
+
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(30, 41, 59, 0.7); /* Semi-transparent navy */
+            background: rgba(30, 41, 59, 0.7); 
             display: flex; justify-content: center; align-items: center; z-index: 9999;
         }
 
@@ -175,8 +168,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirm_archive'])) {
         .btn { padding: 10px 20px; border-radius: 12px; font-weight: 600; cursor: pointer; border: none; text-decoration: none; }
         .btn-cancel { background: white; border: 1px solid #e2e8f0; color: #1e293b; }
         .btn-confirm { background: #f97316; color: white; }
-
-        /* Background Table Mini-Styles */
         table { width: 100%; border-collapse: collapse; }
         th { text-align: left; padding: 10px; background: #f8fafc; font-size: 11px; color: #64748b; }
         td { padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 12px; }

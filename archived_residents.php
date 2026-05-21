@@ -263,7 +263,6 @@ $result = mysqli_query($conn, $query);
         }, 200);
     }
 
-    // Close modal when clicking overlay
     window.onclick = function(event) {
         const modal = document.getElementById('restoreModal');
         if (event.target == modal) {

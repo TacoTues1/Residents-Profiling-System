@@ -146,7 +146,6 @@ if (!empty($errors)) {
             overflow: hidden;
         }
 
-        /* Main Container Layout */
         .main-container {
             flex: 1;
             overflow-y: auto;
@@ -155,7 +154,6 @@ if (!empty($errors)) {
             background: #f1f5f9;
         }
 
-        /* Panel Design */
         .panel {
             background: var(--card-bg);
             padding: 32px;
@@ -166,7 +164,6 @@ if (!empty($errors)) {
             box-sizing: border-box;
         }
 
-        /* Form Styles */
         .form-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -323,7 +320,6 @@ if (!empty($errors)) {
             margin-right: 8px;
         }
 
-        /* Dark Mode Support overrides */
         body.dark-mode {
             background: #0f172a;
         }

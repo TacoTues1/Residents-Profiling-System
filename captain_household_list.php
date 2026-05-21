@@ -7,7 +7,6 @@ if(!isset($_SESSION['role']) || $_SESSION['role'] !== 'Barangay Captain') {
     exit();
 }
 
-// Fetch all households entered by Secretary
 $query = "SELECT h.household_no, h.address, h.purok,
           (SELECT CONCAT(first_name, ' ', last_name) FROM residents r2 WHERE r2.household_no = h.household_no AND r2.relationship = 'Head' AND COALESCE(r2.is_archived, 0) = 0 LIMIT 1) as head_name,
           COUNT(r1.id) as member_count
@@ -17,7 +16,6 @@ $query = "SELECT h.household_no, h.address, h.purok,
           ORDER BY h.id DESC";
 $result = mysqli_query($conn, $query);
 
-// Fetch members mapping for instant modal viewing
 $all_members_query = mysqli_query($conn, "SELECT household_no, first_name, last_name, relationship, age, gender FROM residents WHERE COALESCE(is_archived, 0) = 0 ORDER BY relationship = 'Head' DESC, id ASC");
 $hh_members_map = [];
 if ($all_members_query) {

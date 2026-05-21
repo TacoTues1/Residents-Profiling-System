@@ -33,7 +33,6 @@ function report_format_date_value($value) {
     return $timestamp ? date('M d, Y', $timestamp) : $value;
 }
 
-// Analytics Queries
 $hh_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM households"))['c'] ?? 0;
 $res_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM residents WHERE COALESCE(is_archived, 0) = 0"))['c'] ?? 0;
 $voters_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM residents WHERE COALESCE(is_archived, 0) = 0 AND COALESCE(is_voter, 0) = 1"))['c'] ?? 0;
@@ -58,7 +57,6 @@ $resident_date_source = $resident_added_column
     : ($household_added_column ? 'Household ' . ucwords(str_replace('_', ' ', $household_added_column)) : 'Not recorded');
 $household_date_source = $household_added_column ? ucwords(str_replace('_', ' ', $household_added_column)) : 'Not recorded';
 
-// Demographic breakdown by Purok
 $purok_report_query = mysqli_query($conn, "
     SELECT 
         COALESCE(NULLIF(TRIM(h.purok), ''), 'Unspecified') AS purok_name,
@@ -73,7 +71,6 @@ $purok_report_query = mysqli_query($conn, "
     ORDER BY purok_name ASC
 ");
 
-// Residents List Query
 $residents_query = mysqli_query($conn, "
     SELECT r.*, COALESCE(NULLIF(TRIM(h.purok), ''), 'Unspecified') as purok_name,
            h.address as household_address,
@@ -84,7 +81,7 @@ $residents_query = mysqli_query($conn, "
     ORDER BY r.last_name ASC, r.first_name ASC
 ");
 
-// Households List Query
+
 $households_query = mysqli_query($conn, "
     SELECT h.*, 
         (SELECT CONCAT(last_name, ', ', first_name) FROM residents r WHERE r.household_no = h.household_no AND relationship = 'head' AND COALESCE(r.is_archived, 0) = 0 LIMIT 1) as head_name,
@@ -183,8 +180,6 @@ if ($households_query) {
         
         .hh-group-header { background: #f8fafc; border-left: 4px solid var(--accent-blue); padding: 16px 20px; margin-top: 24px; margin-bottom: 12px; border-radius: 0 12px 12px 0; }
         .hh-group-header h4 { margin: 0; font-size: 16px; color: #1e293b; }
-        
-        /* Dynamic Report Visibility */
         .report-section { display: none; }
         .report-section.active { display: block; }
         
@@ -267,8 +262,6 @@ if ($households_query) {
                 <p id="printSubtitle">Official Barangay Overview & Summary Analytics</p>
             </div>
         </div>
-
-        <!-- 1. ALL REPORTS (OVERVIEW SUMMARY) -->
         <div id="report-all" class="report-section active">
             <div class="stats-grid">
                 <div class="stat-card">
@@ -395,8 +388,6 @@ if ($households_query) {
                 </table>
             </div>
         </div>
-
-        <!-- 3. HOUSEHOLD LIST REPORT -->
         <div id="report-households" class="report-section">
             <div class="report-panel">
                 <div class="report-header">
@@ -549,26 +540,20 @@ function normalizePieDataset(chart) {
 }
 
 function switchReport(reportType, tabElement, subtitleText) {
-    // Hide all report sections
     const sections = document.querySelectorAll('.report-section');
     sections.forEach(sec => sec.classList.remove('active'));
-    
-    // Remove active class from all tabs
     const tabs = document.querySelectorAll('.report-tab');
     tabs.forEach(tab => tab.classList.remove('active'));
-    
-    // Show selected section
+
     const activeSection = document.getElementById('report-' + reportType);
     if (activeSection) {
         activeSection.classList.add('active');
     }
-    
-    // Set active tab
+
     if (tabElement) {
         tabElement.classList.add('active');
     }
 
-    // Update print subtitle
     if (subtitleText) {
         const subtitleEl = document.getElementById('printSubtitle');
         if (subtitleEl) subtitleEl.innerText = subtitleText;
@@ -583,13 +568,10 @@ async function downloadDirectPDF() {
     let y = 20;
     
     const subtitleText = document.getElementById('printSubtitle')?.innerText || 'Official Barangay Overview & Summary Analytics';
-    
-    // --- HEADER WITH LOGO ---
     const logoSize = 18;
     const logoX = margin;
     const logoY = 12;
-    
-    // Try to load and add the barangay logo (left) and DGTE logo (right)
+
     const rightLogoSize = 18;
     try {
         const logoImg = new Image();
@@ -612,7 +594,6 @@ async function downloadDirectPDF() {
         console.warn('Could not load logo for PDF:', e);
     }
 
-    // Add DGTE logo on the top-right (if available)
     try {
         const rightImg = new Image();
         rightImg.crossOrigin = 'anonymous';
@@ -634,8 +615,7 @@ async function downloadDirectPDF() {
     } catch (e) {
         console.warn('Could not load DGTE logo for PDF:', e);
     }
-    
-    // Center the title text in the page (black text only)
+
     const textAreaStart = margin + logoSize + 4;
     const textAreaEnd = pageWidth - margin - rightLogoSize - 4;
     const centerX = (textAreaStart + textAreaEnd) / 2;
@@ -652,8 +632,7 @@ async function downloadDirectPDF() {
     doc.setLineWidth(0.5);
     doc.line(margin, y, pageWidth - margin, y);
     y += 10;
-    
-    // === Dashboard-style report content ===
+
     const pageHeight = doc.internal.pageSize.getHeight();
     const contentWidth = pageWidth - margin * 2;
     const dashboard = {
@@ -929,8 +908,7 @@ async function downloadDirectPDF() {
     if (sectionId !== 'report-all') {
         drawOverviewPieChartImages();
     }
-    
-    // --- OVERVIEW SECTION ---
+
     if (sectionId === 'report-all') {
         drawOverviewPieChartImages();
         renderDashboardTable(
@@ -946,8 +924,7 @@ async function downloadDirectPDF() {
             { subtitle: 'Residents with the household and location they belong to', fontSize: 6.8, headFontSize: 6.8 }
         );
     }
-    
-    // --- RESIDENTS / HOUSEHOLDS LIST ---
+
     if (sectionId === 'report-residents' || sectionId === 'report-households') {
         const reportHeader = activeSection.querySelector('.report-header h3');
 
@@ -967,8 +944,7 @@ async function downloadDirectPDF() {
             );
         }
     }
-    
-    // --- HOUSEHOLDS WITH MEMBERS ---
+
     if (sectionId === 'report-hh-members') {
         drawPanelTitle('Households with Resident Members', 'Grouped household records and active member lists');
 
@@ -995,7 +971,6 @@ async function downloadDirectPDF() {
         });
     }
     
-    // --- SAVE ---
     let filename = subtitleText.replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_') + '.pdf';
     doc.save(filename);
 }

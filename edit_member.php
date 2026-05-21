@@ -109,18 +109,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
 
-    // Checkboxes mapped to your ACTUAL database columns (is_solo)
     $is_voter  = isset($_POST['is_voter']) ? 1 : 0;
     $is_4ps    = isset($_POST['is_4ps']) ? 1 : 0;
     $is_pwd    = isset($_POST['is_pwd']) ? 1 : 0;
     $is_solo   = isset($_POST['is_solo']) ? 1 : 0; 
-    
-    // Auto enforce senior and minor based on age
+
     $age_int   = (int)$age;
     $is_senior = ($age_int >= 60) ? 1 : 0;
     $is_minor  = ($age_int < 18) ? 1 : 0;
 
-    // Auto-archive if status is Deceased or Transferred
     $is_archived = 0;
     $archive_reason = '';
     if ($status === 'Deceased') {

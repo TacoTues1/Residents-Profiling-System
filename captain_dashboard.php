@@ -241,8 +241,6 @@ function is_filter_active($val, $filter_str) {
     $parts = explode(',', $filter_str);
     return in_array($val, $parts, true);
 }
-
-// AJAX Handler for dynamic updates
 if (isset($_GET['ajax_fetch_stats'])) {
     if ($is_former_captain) {
         echo json_encode([
@@ -292,11 +290,10 @@ if (isset($_GET['ajax_fetch_stats'])) {
         body { font-family: 'Inter', sans-serif; margin: 0; display: flex; background: var(--primary-bg); height: 100vh; overflow: hidden; }
 
         .main-container { flex: 1; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box; width: 100%; position: relative; height: 100vh; }
-        
-        /* The Dark Hero Header */
+
         .top-header {
             background: var(--hero-bg);
-            padding: 40px 40px 110px 40px; /* Big bottom padding for overlap */
+            padding: 40px 40px 110px 40px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -348,7 +345,7 @@ if (isset($_GET['ajax_fetch_stats'])) {
         
         .content-body { 
             padding: 0 40px 40px 40px; 
-            margin-top: -65px; /* Pulls it up over the header */ 
+            margin-top: -65px;
             z-index: 10; 
             position: relative; 
             max-width: 1400px; 
@@ -652,8 +649,6 @@ if (isset($_GET['ajax_fetch_stats'])) {
             .header-actions { width: 100%; justify-content: flex-start; }
             .btn-end-term { width: 100%; }
         }
-
-        /* End Term Modal Premium Styling */
         .end-term-modal {
             display: none;
             position: fixed;
@@ -878,7 +873,6 @@ if (isset($_GET['ajax_fetch_stats'])) {
         <?php endif; ?>
 
         <div class="dashboard-grid">
-            <!-- Column 1: Residents -->
             <div class="grid-column">
                 <div class="stat-card">
                     <p>Total Residents (<b id="categoryFilterLabel"><?php echo htmlspecialchars($is_former_captain ? 'No Data' : $filter); ?></b>)</p>
@@ -942,8 +936,6 @@ if (isset($_GET['ajax_fetch_stats'])) {
                     <?php endif; ?>
                 </div>
             </div>
-
-            <!-- Column 2: Households -->
             <div class="grid-column">
                 <div class="stat-card">
                     <p>Total Households</p>
@@ -998,8 +990,6 @@ if (isset($_GET['ajax_fetch_stats'])) {
                     <?php endif; ?>
                 </div>
             </div>
-
-            <!-- Column 3: Recent Activities -->
             <div class="grid-column">
                 <div class="panel" style="padding: 24px;">
                     <h3>Recent Activities</h3>
@@ -1399,7 +1389,6 @@ if (isset($_GET['ajax_fetch_stats'])) {
         }
     }
 
-    // Close dropdowns when clicking outside
     window.addEventListener('click', (e) => {
         if (!e.target.closest('.custom-multiselect')) {
             document.querySelectorAll('.custom-multiselect').forEach(m => m.classList.remove('active'));
@@ -1414,20 +1403,16 @@ if (isset($_GET['ajax_fetch_stats'])) {
         fetch(`captain_dashboard.php?ajax_fetch_stats=1&category=${category}&household_purok=${purok}`)
             .then(res => res.json())
             .then(data => {
-                // Update counters
                 const resCounter = document.querySelector('.counter[data-target="<?php echo $total_res; ?>"]');
                 const houseCounter = document.querySelector('.counter[data-target="<?php echo $total_house; ?>"]');
                 
                 if (resCounter) animateCounter(resCounter, data.total_res);
                 if (houseCounter) animateCounter(houseCounter, data.total_house);
-                
-                // Update labels
+
                 const filterLabel = document.getElementById('categoryFilterLabel');
                 if (filterLabel) {
                     filterLabel.innerText = data.filter_text;
                 }
-
-                // Update Population Chart
                 if (populationChart) {
                     const newPopData = getActiveData(populationLabels, data.population_counts, popColorMap);
                     populationChart.data.labels = newPopData.labels;
@@ -1435,8 +1420,7 @@ if (isset($_GET['ajax_fetch_stats'])) {
                     populationChart.data.datasets[0].backgroundColor = newPopData.colors;
                     populationChart.update();
                 }
-                
-                // Update Purok Chart
+
                 if (purokChart) {
                     if (data.purok_counts.length > 0) {
                         const newPurData = getActiveData(data.purok_labels, data.purok_counts, purokColorMap, '#0ea5e9');
@@ -1459,11 +1443,8 @@ if (isset($_GET['ajax_fetch_stats'])) {
     document.addEventListener('DOMContentLoaded', () => {
         if (isFormerCaptain) return;
         
-        // Initial setup for trigger text
         updateTriggerText('category');
         updateTriggerText('purok');
-
-        // Initial counter animation
         const counters = document.querySelectorAll('.counter');
         counters.forEach(counter => {
             const target = parseInt(counter.getAttribute('data-target'), 10) || 0;

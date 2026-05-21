@@ -134,7 +134,7 @@ if (isset($_POST['remove_participant'])) {
             $action_desc = mysqli_real_escape_string($conn, "Removed participant #$participant_id from activity #$activity_id");
             mysqli_query($conn, "INSERT INTO logs (action) VALUES ('$action_desc')");
             $success = 'Participant removed successfully.';
-            $beneficiaries_count--; // Update count dynamically
+            $beneficiaries_count--;
         } else {
             $errors[] = 'Failed to remove participant.';
         }

@@ -11,7 +11,6 @@ if(!isset($_SESSION['role']) || !in_array($_SESSION['role'], $allowed_roles)) {
 $display_name = trim($_SESSION['full_name'] ?? ($_SESSION['username'] ?? 'User'));
 $display_role = trim($_SESSION['role'] ?? 'Barangay Captain');
 
-// Fetch Activities with a count of how many residents have already received assistance
 $query = "SELECT a.*, 
           (SELECT COUNT(*) FROM activity_participants ap WHERE ap.activity_id = a.id) as beneficiary_count 
           FROM activities a WHERE COALESCE(a.is_archived, 0) = 0 ORDER BY a.id DESC";
@@ -50,7 +49,6 @@ $result = mysqli_query($conn, $query);
         
         .action-link { text-decoration: none; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; color: var(--accent-blue); background: #eff6ff; padding: 6px 12px; border-radius: 8px; }
 
-        /* --- MODAL --- */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); z-index: 999; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
         .modal-container { background: white; width: 100%; max-width: 750px; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0; display: flex; flex-direction: column; max-height: 85vh; }
         .modal-header { padding: 20px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #ffffff; }

@@ -2,7 +2,6 @@
 include('db.php');
 session_start();
 
-// Strict Role Access
 if(!isset($_SESSION['role']) || $_SESSION['role'] !== 'Barangay Captain') {
     header("Location: login.php");
     exit();
@@ -10,13 +9,11 @@ if(!isset($_SESSION['role']) || $_SESSION['role'] !== 'Barangay Captain') {
 
 $where = ["COALESCE(is_archived, 0) = 0"];
 
-// --- SEARCH LOGIC ---
 if (!empty($_GET['search'])) {
     $search = mysqli_real_escape_string($conn, $_GET['search']);
     $where[] = "(first_name LIKE '%$search%' OR last_name LIKE '%$search%' OR middle_name LIKE '%$search%' OR CONCAT(first_name, ' ', middle_name, ' ', last_name) LIKE '%$search%' OR household_no LIKE '%$search%')";
 }
 
-// Category Filtering
 if (!empty($_GET['category']) && $_GET['category'] !== 'All') {
     $cat = mysqli_real_escape_string($conn, $_GET['category']);
     if ($cat == 'Senior Citizen') $where[] = "is_senior = 1";
@@ -36,7 +33,6 @@ $query = "SELECT *
 
 $result = mysqli_query($conn, $query);
 
-// Fetch all activity participants and group by resident_id
 $act_query = mysqli_query($conn, "SELECT ap.resident_id, a.activity_name FROM activity_participants ap JOIN activities a ON ap.activity_id = a.id");
 $resident_activities = [];
 if ($act_query) {
