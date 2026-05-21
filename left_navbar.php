@@ -192,7 +192,6 @@ function left_nav_active($current, $pages) {
         pointer-events: none !important;
     }
 
-    /* Ensure modal overlays always cover the sidebar */
     .modal-overlay,
     .preview-modal,
     .details-modal,
@@ -211,7 +210,7 @@ function left_nav_active($current, $pages) {
     }
 
     .sidebar.collapsed {
-        width: 74px !important; /* Perfectly balances 12px padding + 50px logo + 12px padding */
+        width: 74px !important;
         min-width: 74px !important;
     }
 
@@ -748,8 +747,7 @@ function left_nav_active($current, $pages) {
     body.dark-mode .sidebar-account-name { color: #f8fafc !important; }
     body.dark-mode .sidebar-account-role { color: #94a3b8 !important; }
     body.dark-mode .sidebar-footer { border-color: rgba(148, 163, 184, 0.15) !important; }
-    
-    /* Logout Dropdown Dark Mode */
+
     body.dark-mode .sidebar-logout-dropdown { background: #1e293b !important; border-color: #334155 !important; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4) !important; }
     body.dark-mode .sidebar-dropdown-header { border-bottom-color: #334155 !important; color: #94a3b8 !important; }
     body.dark-mode .sidebar-dropdown-header b { color: #f8fafc !important; }
@@ -847,7 +845,6 @@ function left_nav_active($current, $pages) {
         background: #1e293b !important; color: #94a3b8 !important; border-color: #334155 !important;
     }
 
-    /* --- MOBILE VIEW RESPONSIVENESS --- */
     @media (max-width: 768px) {
         body {
             flex-direction: column !important;
@@ -932,8 +929,6 @@ function left_nav_active($current, $pages) {
         body { background: white !important; }
     }
 </style>
-
-<!-- Add preload-transitions class to body to prevent flash, script immediately executes -->
 <script>
     document.body.classList.add('preload-transitions');
 </script>
@@ -1014,7 +1009,6 @@ function left_nav_active($current, $pages) {
 </div>
 
 <script>
-    // Immediately set collapsed state if stored to avoid layout shift before paint
     if (localStorage.getItem('sidebar-collapsed') === 'true') {
         document.getElementById('sidebar').classList.add('collapsed');
         document.body.classList.add('sidebar-is-collapsed');
@@ -1072,7 +1066,6 @@ function left_nav_active($current, $pages) {
             icon.classList.add('fa-chevron-left');
         }
 
-        // Restore transitions after initial load
         setTimeout(() => {
             document.body.classList.remove('preload-transitions');
         }, 100);
@@ -1083,8 +1076,6 @@ function left_nav_active($current, $pages) {
             closeSidebarAccountDropdown();
         }
     });
-
-    // Dark Mode Initialization and Toggle Logic
     document.addEventListener('DOMContentLoaded', function() {
         const themeSwitches = document.querySelectorAll('.theme-switch');
         

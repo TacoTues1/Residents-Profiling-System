@@ -22,7 +22,6 @@ if (($_GET['error'] ?? '') === 'user_not_found') {
     $errors[] = 'User not found.';
 }
 
-// Handle Add User
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
     $first_name = trim($_POST['first_name'] ?? '');
     $middle_name = trim($_POST['middle_name'] ?? '');
@@ -90,7 +89,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
     }
 }
 
-// Handle Archive User
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['archive_user_id'])) {
     $archive_id = (int)$_POST['archive_user_id'];
 
@@ -135,7 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['archive_user_id'])) {
     }
 }
 
-// Fetch active users only; former-role accounts belong in Archived Users.
+
 $users_where = $archive_columns_ready
     ? "WHERE COALESCE(is_archived, 0) = 0 AND role NOT LIKE 'Former%'"
     : "WHERE role NOT LIKE 'Former%'";
@@ -259,7 +257,6 @@ $users_query = mysqli_query($conn, "SELECT id, first_name, middle_name, last_nam
             .toast-stack { top: 16px; right: 20px; left: 20px; width: auto; }
         }
 
-        /* --- MODAL --- */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 999; align-items: center; justify-content: center; }
         .modal-content { background: white; border-radius: 12px; width: 450px; max-width: 90%; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); transform: scale(0.95); transition: transform 0.2s ease-out; border: 1px solid #e2e8f0; }
         .modal-overlay.show .modal-content { transform: scale(1); }
@@ -319,7 +316,6 @@ $users_query = mysqli_query($conn, "SELECT id, first_name, middle_name, last_nam
 
     <div class="content-body">
 
-        <!-- Add New User Form -->
         <div class="panel">
             <div class="panel-header">
                 <h3><i class="fa-solid fa-user-plus" style="color: var(--accent-blue); margin-right: 8px;"></i>Add New User</h3>
@@ -378,7 +374,6 @@ $users_query = mysqli_query($conn, "SELECT id, first_name, middle_name, last_nam
             </form>
         </div>
 
-        <!-- Users List -->
         <div class="panel">
             <div class="panel-header">
                 <h3><i class="fa-solid fa-users" style="color: var(--accent-blue); margin-right: 8px;"></i>System Users</h3>
@@ -437,7 +432,6 @@ $users_query = mysqli_query($conn, "SELECT id, first_name, middle_name, last_nam
     </div>
 </div>
 
-<!-- Archive Confirmation Modal -->
 <div class="modal-overlay" id="archiveModal">
     <div class="modal-content">
         <div class="modal-body">
@@ -489,7 +483,6 @@ $users_query = mysqli_query($conn, "SELECT id, first_name, middle_name, last_nam
         }, 200);
     }
 
-    // Close modal when clicking overlay
     window.onclick = function(event) {
         const modal = document.getElementById('archiveModal');
         if (event.target == modal) {

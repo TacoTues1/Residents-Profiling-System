@@ -10,13 +10,11 @@ if(!isset($_SESSION['role']) || $_SESSION['role'] !== 'Secretary') {
 
 $where = ["COALESCE(is_archived, 0) = 0"];
 
-// --- SEARCH LOGIC ---
 if (!empty($_GET['search'])) {
     $search = mysqli_real_escape_string($conn, $_GET['search']);
     $where[] = "(first_name LIKE '%$search%' OR last_name LIKE '%$search%' OR middle_name LIKE '%$search%' OR CONCAT(first_name, ' ', middle_name, ' ', last_name) LIKE '%$search%' OR household_no LIKE '%$search%')";
 }
 
-// Category Filtering
 if (!empty($_GET['category']) && $_GET['category'] !== 'All') {
     $cat = mysqli_real_escape_string($conn, $_GET['category']);
     if ($cat == 'Senior Citizen') $where[] = "is_senior = 1";
@@ -36,10 +34,8 @@ $query = "SELECT *
 
 $result = mysqli_query($conn, $query);
 
-// Fetch all households for the "Add Resident" selection modal
 $hh_list_query = mysqli_query($conn, "SELECT household_no, purok FROM households ORDER BY household_no ASC");
 
-// Fetch all activity participants and group by resident_id
 $act_query = mysqli_query($conn, "SELECT ap.resident_id, a.activity_name FROM activity_participants ap JOIN activities a ON ap.activity_id = a.id");
 $resident_activities = [];
 if ($act_query) {
@@ -68,8 +64,6 @@ if ($act_query) {
         body { font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; background: #f1f5f9; overflow: hidden; }
 
         .main-container { flex: 1; overflow-y: auto; display: flex; flex-direction: column; box-sizing: border-box; width: 100%; }
-
-        /* USER PROFILE DRPOWNDOWN */
         .user-profile-container { position: relative; }
         .user-pill { display: flex; align-items: center; background: #f8fafc; padding: 6px 12px; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer; }
         .avatar { background: var(--accent-blue); color: white; width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
@@ -218,12 +212,9 @@ if ($act_query) {
 </div>
 
 <script>
-    // STATE PERSISTENCE ON LOAD
     document.addEventListener("DOMContentLoaded", function() {
         setupResidentSearch();
     });
-
-    // CONSISTENT LOGOUT DROPDOWN
     function toggleLogout() {
         document.getElementById('logoutDropdown').classList.toggle('show');
     }

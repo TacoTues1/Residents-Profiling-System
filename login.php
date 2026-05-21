@@ -13,18 +13,16 @@ if ($success_toast) {
 }
 
 if(isset($_POST['login'])){
-    // Sanitize input
+
     $user = mysqli_real_escape_string($conn, $_POST['username']);
     $pass = $_POST['password'];
 
-    // Check if email column exists
     $email_col_exists = false;
     $col_check = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'email'");
     if ($col_check && mysqli_num_rows($col_check) > 0) {
         $email_col_exists = true;
     }
 
-    // Check database for user
     $archive_filter = $archive_columns_ready ? " AND COALESCE(is_archived, 0) = 0" : "";
     if ($email_col_exists) {
         $query = "SELECT * FROM users WHERE (username='$user' OR email='$user')$archive_filter";
@@ -36,13 +34,12 @@ if(isset($_POST['login'])){
 
     if($data && password_verify($pass, $data['password'])){
         $role = $data['role'];
-        // Store user info in session
+  
         $_SESSION['user_id'] = $data['id'];
         $_SESSION['username'] = $data['username'];
         $_SESSION['role'] = $data['role'];
         $_SESSION['full_name'] = trim(($data['first_name'] ?? '') . ' ' . ($data['middle_name'] ?? '') . ' ' . ($data['last_name'] ?? ''));
 
-        // Redirect based on role
         if($role == "Secretary") {
             header("Location: secretary_dashboard.php?success=login_success");
         } else if ($role == "Barangay Captain" || $role == "Former Captain") {
@@ -309,14 +306,12 @@ if(isset($_POST['login'])){
             to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
-        /* Interactive Cursor-only Styles on Hover */
         .btn-submit:hover,
         .eye-icon:hover,
         .form-footer a:hover {
             cursor: pointer !important;
         }
 
-        /* Responsive Media Queries */
         @media (max-width: 480px) {
             .login-card {
                 padding: 24px;
@@ -330,7 +325,7 @@ if(isset($_POST['login'])){
 <?php render_app_toasts($page_toasts); ?>
 
 <div class="login-card">
-    <!-- Header with logo and system branding -->
+
     <div class="logo-header">
         <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRFPOnNDg4Y5AhoHbUTqz-33jP3WX2ehWimhg&s" class="brand-logo" alt="Barangay Logo">
         <h1 class="brand-title">Barangay Pulantubig</h1>
@@ -339,7 +334,6 @@ if(isset($_POST['login'])){
     
     <div class="divider"></div>
 
-    <!-- Login Form -->
     <div class="form-header">
         <h2 class="form-title">Login</h2>
         <p class="form-subtitle">Sign in to access your dashboard</p>

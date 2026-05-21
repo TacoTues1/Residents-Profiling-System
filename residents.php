@@ -35,7 +35,6 @@ if ($purok_options_query) {
     }
 }
 
-// --- SEARCH LOGIC ---
 if (!empty($_GET['search'])) {
     $search = mysqli_real_escape_string($conn, $_GET['search']);
     $where[] = "(
@@ -50,7 +49,6 @@ if (!empty($_GET['search'])) {
     )";
 }
 
-// Purok Filtering
 if (!empty($selected_purok) && $selected_purok !== 'All') {
     $escaped_purok = mysqli_real_escape_string($conn, $selected_purok);
     if ($escaped_purok === 'Unspecified') {
@@ -194,7 +192,6 @@ $result = mysqli_query($conn, $query);
 </div>
 
 <script>
-    // STATE PERSISTENCE ON LOAD
     document.addEventListener("DOMContentLoaded", function() {
         setupHouseholdSearch();
     });

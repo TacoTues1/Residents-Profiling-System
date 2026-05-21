@@ -1,7 +1,6 @@
 <?php
 session_start();
 
-// FIXED: Changed 'db_connection.php' to 'db.php' to match your folder screenshot
 $connection_file = __DIR__ . '/db.php';
 
 if (!file_exists($connection_file)) {
@@ -16,8 +15,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Secretary') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['members'])) {
-    
-    // Ensure the uploads folder from your screenshot is ready
+
     if (!is_dir('uploads')) { mkdir('uploads', 0777, true); }
 
     $household_no = $_POST['household_no'] ?? '';
@@ -27,7 +25,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['members'])) {
     foreach ($members as $i => $m) {
         $current_photo_path = '';
 
-        // Photo Logic (Captures both Webcam and Uploads)
         if (!empty($m['photo'])) {
             $data = $m['photo'];
             if (preg_match('/^data:image\/(\w+);base64,/', $data, $type)) {
@@ -40,7 +37,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['members'])) {
             }
         }
 
-        // Mapping Logic
         $is_voter  = isset($m['voter']) ? 1 : 0;
         $is_4ps    = isset($m['four_ps']) ? 1 : 0;
         $is_pwd    = isset($m['pwd']) ? 1 : 0;

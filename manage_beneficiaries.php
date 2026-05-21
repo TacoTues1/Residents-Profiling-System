@@ -16,7 +16,6 @@ if ($activity_id <= 0) {
 
 $user_role = $_SESSION['role'] ?? 'User';
 
-// Mark resident as received
 if (isset($_POST['mark_received'])) {
     $resident_id = isset($_POST['resident_id']) ? (int)$_POST['resident_id'] : 0;
     $household_no = $_POST['household_no'] ?? '';
@@ -57,7 +56,6 @@ if (isset($_POST['mark_received'])) {
     exit();
 }
 
-// Fetch Activity Details
 $act_query = mysqli_query($conn, "SELECT activity_name, activity_date FROM activities WHERE id = '$activity_id' LIMIT 1");
 $act_data = $act_query ? mysqli_fetch_assoc($act_query) : null;
 if (!$act_data) {
@@ -65,7 +63,6 @@ if (!$act_data) {
     exit();
 }
 
-// Fetch Participants
 $is_4ps_act = (strtolower(trim($act_data['activity_name'])) === '4ps beneficiary');
 
 if ($is_4ps_act) {
@@ -100,7 +97,6 @@ if ($is_4ps_act) {
         :root { --sidebar-navy: #1e293b; --accent-blue: #2563eb; --logo-orange: #ff9800; --text-gray: #64748b; }
         body { font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; background: #f1f5f9; overflow: hidden; }
 
-        /* SIDEBAR CONSISTENCY */
         .sidebar { width: 280px; background: var(--sidebar-navy); color: white; display: flex; flex-direction: column; position: relative; flex-shrink: 0; transition: width 0.3s ease; overflow: hidden; }
         .sidebar.collapsed { width: 80px; }
         

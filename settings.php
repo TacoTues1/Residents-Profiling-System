@@ -786,7 +786,6 @@ $initials = strtoupper($first_name_initial . $last_name_initial);
                     </form>
                 </div>
                 
-                <!-- Security Card -->
                 <div class="settings-card">
                     <div class="card-header">
                         <span class="card-icon"><i class="fa-solid fa-shield-halved"></i></span>

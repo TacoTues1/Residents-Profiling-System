@@ -413,7 +413,6 @@ if (!function_exists('render_form_draft_assets')) {
                     try {
                         storage.setItem(storageKey(options.key), JSON.stringify(collect(form, options)));
                     } catch (error) {
-                        // Storage can fill up if a browser is very constrained; keep the form usable.
                     }
                 }
 

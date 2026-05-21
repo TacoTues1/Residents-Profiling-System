@@ -189,7 +189,6 @@ $captain_exists = active_captain_exists($conn);
             font-weight: 700;
         }
 
-        /* Status Cards styling */
         .status-card {
             text-align: center;
             padding: 10px 0;
@@ -250,7 +249,6 @@ $captain_exists = active_captain_exists($conn);
             font-family: inherit;
         }
 
-        /* Interactive Cursor-only Styles on Hover */
         .btn-submit:hover,
         .btn-action:hover,
         .input-container select:hover,
@@ -259,7 +257,6 @@ $captain_exists = active_captain_exists($conn);
             cursor: pointer !important;
         }
 
-        /* Responsive Media Queries */
         @media (max-width: 600px) {
             .register-card {
                 padding: 24px;
@@ -281,7 +278,6 @@ $captain_exists = active_captain_exists($conn);
 <body>
 
 <div class="register-card">
-    <!-- Header with logo and system branding -->
     <div class="logo-header">
         <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRFPOnNDg4Y5AhoHbUTqz-33jP3WX2ehWimhg&s" class="brand-logo" alt="Barangay Logo">
         <h1 class="brand-title">Barangay Pulantubig</h1>
@@ -308,7 +304,6 @@ $captain_exists = active_captain_exists($conn);
             $email_col_exists = true;
         }
 
-        // 1. Check if username already exists
         $check_user = mysqli_query($conn, "SELECT username FROM users WHERE username = '$user'");
 
         if(!in_array($role, $allowed_roles, true)): ?>
@@ -372,7 +367,6 @@ $captain_exists = active_captain_exists($conn);
             </div>
 
         <?php else: 
-            // 2. Success: Proceed with Registration
             $safe_email = mysqli_real_escape_string($conn, $email);
             $hashed_pass = password_hash($password, PASSWORD_DEFAULT);
             if ($email_col_exists) {
@@ -403,14 +397,12 @@ $captain_exists = active_captain_exists($conn);
         <?php endif; ?>
 
     <?php else: ?>
-        <!-- Registration Form -->
         <div class="form-header">
             <h2 class="form-title">Create Account</h2>
             <p class="form-subtitle">Register to join the Residents' Profiling System</p>
         </div>
 
         <form id="register-form" class="register-form" method="POST">
-            <!-- Personal Details Section -->
             <div class="form-group">
                 <label for="first_name">First Name</label>
                 <div class="input-container">
@@ -452,7 +444,6 @@ $captain_exists = active_captain_exists($conn);
                 <?php endif; ?> -->
             </div>
 
-            <!-- Account Credentials -->
             <div class="form-group">
                 <label for="username">Username</label>
                 <div class="input-container">

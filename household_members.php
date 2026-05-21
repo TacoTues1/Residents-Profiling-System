@@ -19,7 +19,6 @@ if ($household_no === '') {
 
 $safe_hh_no = mysqli_real_escape_string($conn, $household_no);
 
-// Fetch Household Information
 $query_h = "SELECT * FROM households WHERE household_no = '$safe_hh_no'";
 $result_h = mysqli_query($conn, $query_h);
 $household = mysqli_fetch_assoc($result_h);
@@ -36,11 +35,9 @@ if ($success_toast) {
     $page_toasts[] = $success_toast;
 }
 
-// Fetch Members (Only active members)
 $query_m = "SELECT * FROM residents WHERE household_no = '$safe_hh_no' AND COALESCE(is_archived, 0) = 0 ORDER BY id ASC";
 $result_m = mysqli_query($conn, $query_m);
 
-// Fetch all activity participants and group by resident_id
 $act_query = mysqli_query($conn, "SELECT ap.resident_id, a.activity_name FROM activity_participants ap JOIN activities a ON ap.activity_id = a.id");
 $resident_activities = [];
 if ($act_query) {
@@ -76,7 +73,6 @@ if ($act_query) {
 
         body { font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; background: var(--main-bg); overflow: hidden; }
 
-        /* --- SIDEBAR --- */
         .sidebar { width: 280px; background: var(--sidebar-navy); color: white; display: flex; flex-direction: column; position: relative; flex-shrink: 0; transition: width 0.3s ease; overflow: hidden; }
         .sidebar.collapsed { width: 80px; }
         
@@ -225,7 +221,6 @@ if ($act_query) {
         .table-wrapper::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
         .table-wrapper::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 999px; }
 
-        /* --- ACTION BUTTONS --- */
         .action-btns { display: flex; gap: 10px; }
         .action-btn { display: inline-flex; align-items: center; justify-content: center; width: 35px; height: 35px; border-radius: 10px; text-decoration: none; border: 1px solid var(--border-color); cursor: pointer;  }
         .btn-edit { color: var(--accent-blue); background-color: #eff6ff; }
@@ -241,7 +236,6 @@ if ($act_query) {
         .lightbox-modal { display: none; position: fixed; z-index: 2000; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
         .lightbox-content { max-width: 90%; max-height: 90%; border-radius: 16px; }
 
-        /* --- CLASSIFICATION UNIFORM STYLING --- */
         .class-container { display: flex; flex-direction: column; justify-content: flex-start; }
         .class-text { 
             display: block; 

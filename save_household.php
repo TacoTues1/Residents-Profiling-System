@@ -1,6 +1,5 @@
 <?php
 session_start();
-// Include db.php only if you need to validate household numbers against the DB before proceeding
 include('db.php');
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -17,7 +16,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         exit();
     }
 
-    // Save the household data into a session variable
     $_SESSION['temp_household_data'] = [
         'hh_no' => $_POST['hh_no'],
         'survey_date' => $survey_date,
@@ -31,7 +29,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         'water' => $_POST['water']
     ];
 
-    // Redirect to the "Add Member" page
     header("Location: add_member.php");
     exit();
 }

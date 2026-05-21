@@ -109,7 +109,6 @@ function is_filter_active($val, $filter_str) {
     return in_array($val, $parts, true);
 }
 
-// AJAX Handler for dynamic updates
 if (isset($_GET['ajax_fetch_stats'])) {
     echo json_encode([
         'total_res' => (int)$total_res,
@@ -549,7 +548,6 @@ if (isset($_GET['ajax_fetch_stats'])) {
                 </div>
             </div>
 
-            <!-- Column 2: Households -->
             <div class="grid-column">
                 <div class="stat-card">
                     <p>Total Households</p>

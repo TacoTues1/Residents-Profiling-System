@@ -7,11 +7,7 @@ if(!isset($_SESSION['role']) || $_SESSION['role'] !== 'Secretary') {
     exit();
 }
 
-/** * UPDATED QUERY
- * 1. Selecting from households.
- * 2. Using a subquery to count residents where their household_no matches.
- * 3. Using a subquery to find the name of the resident marked as 'Head'.
- */
+
 $query = "SELECT h.*, 
           (SELECT COUNT(*) FROM residents r WHERE r.household_no = h.household_no AND COALESCE(r.is_archived, 0) = 0) as member_count,
           (SELECT CONCAT(first_name, ' ', last_name) FROM residents r WHERE r.household_no = h.household_no AND r.relationship = 'Head' AND COALESCE(r.is_archived, 0) = 0 LIMIT 1) as head_name

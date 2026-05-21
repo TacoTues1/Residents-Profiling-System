@@ -43,8 +43,6 @@ $result_m = mysqli_query($conn, $query_m);
         td { padding: 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
         .status-active { background: #22c55e; color: white; padding: 4px 10px; border-radius: 16px; font-size: 12px; }
         .btn-back { background: #64748b; color: white; padding: 10px 20px; border-radius: 16px; text-decoration: none; display: inline-block; margin-top: 20px; }
-
-        /* Dark Mode Overrides */
         body.dark-mode { background: #0f172a; color: white; }
         body.dark-mode .panel { background: #1e293b; border-color: #334155; }
         body.dark-mode .info-box { background: #0f172a; border-color: #334155; }
