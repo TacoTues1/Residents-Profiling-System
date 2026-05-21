@@ -1,5 +1,6 @@
 <?php
 include('db.php');
+include_once('toast_helpers.php');
 session_start();
 
 // Security check: Only Secretary role
@@ -8,7 +9,14 @@ if(!isset($_SESSION['role']) || $_SESSION['role'] !== 'Secretary') {
     exit();
 }
 
-$household_no = $_GET['household_no'] ?? '';
+$household_no = $_GET['household_no'] ?? ($_SESSION['current_household_no'] ?? '');
+$household_no = trim($household_no);
+
+if ($household_no === '') {
+    header("Location: residents.php?error=household_not_found");
+    exit();
+}
+
 $safe_hh_no = mysqli_real_escape_string($conn, $household_no);
 
 // Fetch Household Information
@@ -17,8 +25,15 @@ $result_h = mysqli_query($conn, $query_h);
 $household = mysqli_fetch_assoc($result_h);
 
 if (!$household) {
-    echo "<script>alert('Household not found.'); window.location.href='residents.php';</script>";
+    header("Location: residents.php?error=household_not_found");
     exit();
+}
+
+$_SESSION['current_household_no'] = $household_no;
+$page_toasts = [];
+$success_toast = app_toast_from_success_code($_GET['success'] ?? '');
+if ($success_toast) {
+    $page_toasts[] = $success_toast;
 }
 
 // Fetch Members (Only active members)
@@ -108,13 +123,107 @@ if ($act_query) {
         .info-item span { font-size: 15px; color: #1e293b; font-weight: 600; }
 
         /* --- DATA TABLE --- */
-        .table-wrapper { overflow-x: auto; border: 1px solid var(--border-color); border-radius: 12px; margin-top: 20px; }
-        table { width: 100%; border-collapse: collapse; min-width: 1400px; }
+        .table-wrapper { overflow-x: scroll; overflow-y: hidden; border: 1px solid var(--border-color); border-radius: 12px; margin-top: 20px; scrollbar-gutter: stable; }
+        table { width: 100%; border-collapse: collapse; min-width: 900px; }
         th { text-align: left; padding: 16px; color: var(--text-gray); font-size: 11px; text- background: #f8fafc; border-bottom: 2px solid var(--border-color); }
         
         td { padding: 16px; border-bottom: 1px solid #e5e7eb; font-size: var(--table-font-size); color: var(--primary-text); vertical-align: middle; }
 
-        .res-photo { width: 45px; height: 45px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border-color); cursor: pointer; }
+        .res-photo,
+        .res-photo-placeholder {
+            width: 45px;
+            height: 45px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            flex: 0 0 45px;
+        }
+
+        .res-photo {
+            object-fit: cover;
+            cursor: pointer;
+        }
+
+        .res-photo-placeholder {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #f1f5f9;
+            color: #94a3b8;
+            font-size: 18px;
+        }
+
+        .member-row { cursor: pointer; }
+        .member-row:hover { background: #f8fafc; }
+        .details-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+        .details-item { background: #ffffff; border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+        .details-item label { display: block; font-size: 10px; font-weight: 800; color: var(--text-gray); text-transform: uppercase; letter-spacing: 0.4px; }
+        .details-item span { display: block; margin-top: 6px; font-size: 13px; font-weight: 600; color: var(--primary-text); word-break: break-word; }
+        .details-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+        .details-badge { background: #eef2ff; color: #3730a3; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+        .details-muted { color: #cbd5e1; font-size: 12px; font-weight: 600; }
+
+        .details-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 1500;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: rgba(15, 23, 42, 0.6);
+        }
+
+        .details-modal.is-open { display: flex; }
+
+        .details-dialog {
+            width: min(900px, calc(100vw - 48px));
+            max-height: 86vh;
+            background: #ffffff;
+            border-radius: 18px;
+            box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            outline: none;
+        }
+
+        .details-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .details-header h3 { margin: 0; font-size: 18px; font-weight: 800; color: #0f172a; }
+        .details-header p { margin: 4px 0 0; color: var(--text-gray); font-size: 12px; font-weight: 600; }
+
+        .details-close {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            background: #ffffff;
+            color: #475569;
+            font-size: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .details-body {
+            padding: 20px 24px;
+            background: #f8fafc;
+            overflow-y: auto;
+        }
+
+        body.modal-open { overflow: hidden; }
+
+        .table-wrapper::-webkit-scrollbar { height: 10px; }
+        .table-wrapper::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+        .table-wrapper::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 999px; }
 
         /* --- ACTION BUTTONS --- */
         .action-btns { display: flex; gap: 10px; }
@@ -162,9 +271,46 @@ if ($act_query) {
         body.dark-mode td { border-bottom-color: #334155; color: #e2e8f0; }
         body.dark-mode .class-text { color: #e2e8f0; }
         body.dark-mode .activity-badge { background: #03294f; color: #38bdf8; }
+        body.dark-mode .member-row:hover { background: #0f172a; }
+        body.dark-mode .details-item { background: #1e293b; border-color: #334155; }
+        body.dark-mode .details-item span { color: #e2e8f0; }
+        body.dark-mode .details-badge { background: #1e1b4b; color: #c7d2fe; }
+        body.dark-mode .details-muted { color: #94a3b8; }
+        body.dark-mode .table-wrapper::-webkit-scrollbar-thumb { background: #475569; }
+        body.dark-mode .table-wrapper::-webkit-scrollbar-track { background: #0f172a; }
+        body.dark-mode .details-dialog { background: #1e293b; }
+        body.dark-mode .details-header { border-bottom-color: #334155; }
+        body.dark-mode .details-header h3 { color: #f8fafc; }
+        body.dark-mode .details-body { background: #0f172a; }
+        body.dark-mode .details-close { background: #0f172a; color: #f8fafc; border-color: #334155; }
         body.dark-mode .btn-secondary { background: #0f172a; color: white; border-color: #334155; }
         body.dark-mode h2, body.dark-mode h3 { color: white !important; }
         body.dark-mode p { color: #94a3b8 !important; }
+
+        /* --- SUCCESS MODAL --- */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; }
+        .modal-content { background: white; border-radius: 24px; width: 400px; max-width: 90%; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); transform: scale(0.95); transition: transform 0.2s ease-out; }
+        .modal-overlay.show .modal-content { transform: scale(1); }
+        .modal-body { padding: 32px; text-align: center; }
+        
+        .success-icon { width: 64px; height: 64px; background: #dcfce7; color: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; margin: 0 auto 20px; }
+        .success-title { font-size: 20px; font-weight: 700; color: #1e293b; margin-bottom: 12px; }
+        .success-text { color: #64748b; line-height: 1.6; margin-bottom: 30px; font-size: 15px; }
+        .btn-dismiss { padding: 12px 32px; border-radius: 12px; border: none; background: var(--accent-blue); color: white; font-weight: 600; cursor: pointer; transition: all 0.2s; width: 100%; font-size: 15px; }
+        .btn-dismiss:hover { background: var(--accent-blue-hover); transform: translateY(-1px); box-shadow: 0 10px 15px -3px rgba(130, 78, 57, 0.3); }
+
+        body.dark-mode .modal-content { background: #1e293b; }
+        body.dark-mode .success-title { color: white; }
+        body.dark-mode .success-text { color: #94a3b8; }
+        body.dark-mode .success-icon { background: #064e3b; color: #34d399; }
+
+        @media (max-width: 1100px) {
+            .details-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+
+        @media (max-width: 700px) {
+            .details-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
@@ -174,6 +320,7 @@ if ($act_query) {
 </div>
 
 <?php include_once('left_navbar.php'); ?>
+<?php render_app_toasts($page_toasts); ?>
 
 <div class="main-container">
     <header class="top-header">
@@ -234,74 +381,76 @@ if ($act_query) {
                         <tr>
                             <th>Full Name</th>
                             <th>Relation</th>
-                            <th>Sex</th>
                             <th>Age</th>
-                            <th>Birth Date</th>
-                            <th>Civil Status</th>
-                            <th>Education</th>
-                            <th>Classification</th> 
-                            <th>Activities</th>
-                            <th>Employed</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php while($m = mysqli_fetch_assoc($result_m)): ?>
-                        <tr>
+                        <?php
+                            $activities = $resident_activities[$m['id']] ?? [];
+                            $all_labels = [];
+                            if (isset($m['is_4ps']) && $m['is_4ps'] == 1) $all_labels[] = "4Ps";
+                            if (isset($m['is_pwd']) && $m['is_pwd'] == 1) $all_labels[] = "PWD";
+                            if (isset($m['is_senior']) && $m['is_senior'] == 1) $all_labels[] = "Senior Citizen";
+                            if (isset($m['is_solo']) && $m['is_solo'] == 1) $all_labels[] = "Solo Parent";
+                            if (isset($m['is_voter']) && $m['is_voter'] == 1) $all_labels[] = "Voter";
+                            if (isset($m['is_minor']) && $m['is_minor'] == 1) $all_labels[] = "Minor";
+
+                            $employment_raw = trim($m['employment_status'] ?? '');
+                            $employment_norm = strtoupper($employment_raw);
+                            if ($employment_norm === 'YES' || $employment_norm === 'EMPLOYED') {
+                                $employment_label = 'Employed';
+                            } elseif ($employment_norm === 'NO' || $employment_norm === 'UNEMPLOYED') {
+                                $employment_label = 'Unemployed';
+                            } else {
+                                $employment_label = $employment_raw !== '' ? $employment_raw : '---';
+                            }
+
+                            $full_name = trim($m['last_name'] . ', ' . $m['first_name'] . ', ' . $m['middle_name']);
+                            $relation = $m['relationship'] ?? '---';
+                            $age = $m['age'] ?? '---';
+                            $status_label = $m['status'] ?? 'Active';
+                            $sex = $m['gender'] ?? '---';
+                            $birth_date = !empty($m['dob']) ? date("M d, Y", strtotime($m['dob'])) : '---';
+                            $civil_status = $m['civil_status'] ?? '---';
+                            $education = $m['education'] ?? '---';
+                            $photo_path = trim((string)($m['photo_path'] ?? ''));
+                            $photo_file = $photo_path !== '' ? __DIR__ . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $photo_path) : '';
+                            $has_photo = $photo_path !== '' && $photo_path !== 'uploads/default.png' && is_file($photo_file);
+
+                            $class_json = htmlspecialchars(json_encode($all_labels, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP), ENT_QUOTES, 'UTF-8');
+                            $act_json = htmlspecialchars(json_encode($activities, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP), ENT_QUOTES, 'UTF-8');
+                        ?>
+                        <tr class="member-row" role="button" tabindex="0"
+                            data-full-name="<?php echo htmlspecialchars($full_name, ENT_QUOTES); ?>"
+                            data-relation="<?php echo htmlspecialchars($relation, ENT_QUOTES); ?>"
+                            data-age="<?php echo htmlspecialchars($age, ENT_QUOTES); ?>"
+                            data-status="<?php echo htmlspecialchars($status_label, ENT_QUOTES); ?>"
+                            data-sex="<?php echo htmlspecialchars($sex, ENT_QUOTES); ?>"
+                            data-birth-date="<?php echo htmlspecialchars($birth_date, ENT_QUOTES); ?>"
+                            data-civil-status="<?php echo htmlspecialchars($civil_status, ENT_QUOTES); ?>"
+                            data-education="<?php echo htmlspecialchars($education, ENT_QUOTES); ?>"
+                            data-employment="<?php echo htmlspecialchars($employment_label, ENT_QUOTES); ?>"
+                            data-classification='<?php echo $class_json; ?>'
+                            data-activities='<?php echo $act_json; ?>'>
                             <td>
                                 <div style="display: flex; align-items: center; gap: 12px;">
-                                    <img src="<?php echo (!empty($m['photo_path'])) ? $m['photo_path'] : 'uploads/default.png'; ?>" class="res-photo" onclick="openLightbox(this.src)">
+                                    <?php if ($has_photo): ?>
+                                        <img src="<?php echo htmlspecialchars($photo_path); ?>" class="res-photo" onclick="openLightbox(this.src)" alt="Resident photo">
+                                    <?php else: ?>
+                                        <span class="res-photo-placeholder" aria-label="No profile picture">
+                                            <i class="fa-solid fa-user"></i>
+                                        </span>
+                                    <?php endif; ?>
                                     <div style="font-weight:700;">
                                         <?php echo htmlspecialchars($m['last_name'] . ', ' . $m['first_name'] . ', ' . $m['middle_name']); ?>
                                     </div>
                                 </div>
                             </td>
                             <td><?php echo htmlspecialchars($m['relationship']); ?></td>
-                            <td><?php echo htmlspecialchars($m['gender']); ?></td>
                             <td><?php echo htmlspecialchars($m['age']); ?></td>
-                            <td><?php echo !empty($m['dob']) ? date("M d, Y", strtotime($m['dob'])) : '---'; ?></td>
-                            <td><?php echo htmlspecialchars($m['civil_status']); ?></td>
-                            <td><?php echo htmlspecialchars($m['education'] ?? '---'); ?></td>
-                            
-                            <td>
-                                <div class="class-container">
-                                    <?php 
-                                        $all_labels = [];
-                                        if (isset($m['is_4ps']) && $m['is_4ps'] == 1) $all_labels[] = "4Ps";
-                                        if (isset($m['is_pwd']) && $m['is_pwd'] == 1) $all_labels[] = "PWD";
-                                        if (isset($m['is_senior']) && $m['is_senior'] == 1) $all_labels[] = "Senior Citizen";
-                                        if (isset($m['is_solo']) && $m['is_solo'] == 1) $all_labels[] = "Solo Parent";
-                                        if (isset($m['is_voter']) && $m['is_voter'] == 1) $all_labels[] = "Voter"; 
-                                        if (isset($m['is_minor']) && $m['is_minor'] == 1) $all_labels[] = "Minor";
-
-                                        if (!empty($all_labels)) {
-                                            foreach($all_labels as $label) {
-                                                echo "<span class='class-text'>" . htmlspecialchars($label) . "</span>";
-                                            }
-                                        } else {
-                                            echo "<span style='color:#cbd5e1;'>None</span>";
-                                        }
-                                    ?>
-                                </div>
-                            </td>
-
-                            <td>
-                                <?php 
-                                    $activities = $resident_activities[$m['id']] ?? [];
-                                    if (!empty($activities)): 
-                                ?>
-                                    <div style="display:flex; gap:4px; flex-wrap:wrap;">
-                                        <?php foreach ($activities as $act): ?>
-                                            <span class="activity-badge"><?php echo htmlspecialchars($act); ?></span>
-                                        <?php endforeach; ?>
-                                    </div>
-                                <?php else: ?>
-                                    <span style="color: #cbd5e1;">None</span>
-                                <?php endif; ?>
-                            </td>
-
-                            <td><?php echo (isset($m['employment_status']) && strtoupper($m['employment_status']) == 'YES') ? 'Yes' : 'No'; ?></td>
                             <td>
                                 <span class="status-pill <?php echo ($m['status'] ?? 'Active') !== 'Active' ? 'status-muted' : ''; ?>">
                                     <?php echo htmlspecialchars($m['status'] ?? 'Active'); ?>
@@ -327,23 +476,32 @@ if ($act_query) {
     </div>
 </div>
 
+<div class="details-modal" id="memberDetailsModal" aria-hidden="true">
+    <div class="details-dialog" role="dialog" aria-modal="true" aria-labelledby="memberDetailsTitle" tabindex="-1">
+        <div class="details-header">
+            <div>
+                <h3 id="memberDetailsTitle">Member Details</h3>
+                <p id="memberDetailsSubtitle">---</p>
+            </div>
+            <button type="button" class="details-close" onclick="closeMemberModal()" aria-label="Close details">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="details-body">
+            <div class="details-grid" id="memberDetailsGrid"></div>
+        </div>
+    </div>
+</div>
+
 <script>
-    function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const icon = document.getElementById('toggleBtn');
-        sidebar.classList.toggle('collapsed');
-        document.body.classList.toggle('sidebar-is-collapsed');
-        icon.classList.toggle('fa-xmark');
-        icon.classList.toggle('fa-bars');
-        localStorage.setItem('sidebar-collapsed', sidebar.classList.contains('collapsed'));
-    }
+    const detailsModal = document.getElementById('memberDetailsModal');
+    const detailsDialog = detailsModal ? detailsModal.querySelector('.details-dialog') : null;
+    const detailsTitle = document.getElementById('memberDetailsTitle');
+    const detailsSubtitle = document.getElementById('memberDetailsSubtitle');
+    const detailsGrid = document.getElementById('memberDetailsGrid');
 
     document.addEventListener("DOMContentLoaded", function() {
-        if (localStorage.getItem('sidebar-collapsed') === 'true') {
-            document.body.classList.add('sidebar-is-collapsed');
-            document.getElementById('sidebar').classList.add('collapsed');
-            document.getElementById('toggleBtn').classList.replace('fa-xmark', 'fa-bars');
-        }
+        wireMemberModal();
     });
 
     function toggleLogout() { document.getElementById('logoutDropdown').classList.toggle('show'); }
@@ -354,6 +512,132 @@ if ($act_query) {
         window.location.href = "archived.php?id=" + id + "&household_no=<?php echo urlencode($household_no); ?>";
     }
 
+    function escapeHtml(value) {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+
+        return String(value ?? '').replace(/[&<>"']/g, (char) => map[char]);
+    }
+
+    function parseJsonList(value) {
+        if (!value) return [];
+        try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+            return [];
+        }
+    }
+
+    function buildTextItem(label, value) {
+        const safeValue = value && value.trim() ? value : '---';
+        return `
+            <div class="details-item">
+                <label>${escapeHtml(label)}</label>
+                <span>${escapeHtml(safeValue)}</span>
+            </div>
+        `;
+    }
+
+    function buildBadgeItem(label, items) {
+        const badges = items.length
+            ? items.map((item) => `<span class="details-badge">${escapeHtml(item)}</span>`).join('')
+            : `<span class="details-muted">None</span>`;
+
+        return `
+            <div class="details-item">
+                <label>${escapeHtml(label)}</label>
+                <div class="details-badges">${badges}</div>
+            </div>
+        `;
+    }
+
+    function openMemberModal(row) {
+        if (!detailsModal || !detailsGrid) return;
+
+        const data = row.dataset;
+        const classifications = parseJsonList(data.classification);
+        const activities = parseJsonList(data.activities);
+
+        if (detailsTitle) {
+            detailsTitle.textContent = 'Member Details';
+        }
+
+        if (detailsSubtitle) {
+            const subtitleParts = [data.fullName, data.relation].filter(Boolean);
+            detailsSubtitle.textContent = subtitleParts.length ? subtitleParts.join(' • ') : '---';
+        }
+
+        const items = [
+            buildTextItem('Full Name', data.fullName),
+            buildTextItem('Relation', data.relation),
+            buildTextItem('Age', data.age),
+            buildTextItem('Status', data.status),
+            buildTextItem('Sex', data.sex),
+            buildTextItem('Birth Date', data.birthDate),
+            buildTextItem('Civil Status', data.civilStatus),
+            buildTextItem('Education', data.education),
+            buildTextItem('Employment', data.employment),
+            buildBadgeItem('Classification', classifications),
+            buildBadgeItem('Activities', activities)
+        ];
+
+        detailsGrid.innerHTML = items.join('');
+        detailsModal.classList.add('is-open');
+        detailsModal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('modal-open');
+        if (detailsDialog) {
+            detailsDialog.focus();
+        }
+    }
+
+    function closeMemberModal() {
+        if (!detailsModal) return;
+        detailsModal.classList.remove('is-open');
+        detailsModal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('modal-open');
+    }
+
+    function wireMemberModal() {
+        const rows = document.querySelectorAll('.member-row');
+        if (!rows.length) return;
+
+        rows.forEach((row) => {
+            row.addEventListener('click', (event) => {
+                if (event.target.closest('.action-btn') || event.target.closest('.res-photo') || event.target.closest('a') || event.target.closest('button')) {
+                    return;
+                }
+                openMemberModal(row);
+            });
+
+            row.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openMemberModal(row);
+                }
+            });
+        });
+
+        if (detailsModal) {
+            detailsModal.addEventListener('click', (event) => {
+                if (event.target === detailsModal) {
+                    closeMemberModal();
+                }
+            });
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && detailsModal && detailsModal.classList.contains('is-open')) {
+                closeMemberModal();
+            }
+        });
+    }
+
     window.onclick = function(e) {
         if (!e.target.closest('.user-profile-container')) {
             const dropdown = document.getElementById('logoutDropdown');
@@ -361,15 +645,18 @@ if ($act_query) {
         }
     }
 </script>
+<?php if (($_GET['success'] ?? '') === 'residents_added'): ?>
+<?php render_form_draft_assets(); ?>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.AppFormDraft) {
+            window.AppFormDraft.clear(<?php echo json_encode('add-members-' . $household_no, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>);
+        }
+    });
+</script>
+<?php endif; ?>
 </body>
 </html>
-
-
-
-
-
-
-
 
 
 

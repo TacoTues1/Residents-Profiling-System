@@ -1,6 +1,10 @@
 <?php 
 include('db.php'); 
+include_once('user_archive_helpers.php');
+include_once('toast_helpers.php');
 session_start(); 
+
+$captain_exists = active_captain_exists($conn);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -9,139 +13,488 @@ session_start();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create Account | Residents Profiling</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .card { background: white; border: 1px solid #e5e7eb; padding: 30px; border-radius: 24px; width: 400px; text-align: center;  }
-        .icon-circle { width: 60px; height: 60px; background: #00a65a; border-radius: 50%; display: flex; justify-content: center; align-items: center; margin: 0 auto 15px; color: white; font-size: 30px; }
-        h2 { margin: 0; font-size: 22px; color: #1a1f2e; }
-        .subtitle { color: #64748b; font-size: 14px; margin-bottom: 25px; }
-        
-        label { display: block; text-align: left; font-weight: bold; font-size: 13px; margin-bottom: 4px; color: #1e293b; }
-        .input-group { position: relative; width: 100%; margin-bottom: 4px; }
-        
-        input, select { 
-            width: 100%; padding: 12px; background: #f1f5f9; border: 1px solid #e2e8f0; 
-            border-radius: 10px; box-sizing: border-box; font-size: 14px; outline: none; 
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
-        input:focus { border-color: #111827; background: #fff; }
-
-        .eye-icon { position: absolute; right: 15px; top: 12px; color: #94a3b8; cursor: pointer; z-index: 10; }
-
-        
-        .btn-register { 
-            background: #1a1a1a; color: white; border: none; padding: 14px; 
-            width: 100%; border-radius: 12px; font-size: 16px; font-weight: bold; 
-            cursor: pointer; margin-top: 10px; 
+        body {
+            font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+            background-color: #f8fafc;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            color: #1e293b;
         }
 
-        
-        .btn-blue { background: #3f41e6; color: white; border: none; padding: 12px 40px; border-radius: 12px; cursor: pointer; text-decoration: none; display: inline-block; font-weight: bold; margin-top: 10px; }
-        
-        .footer { margin-top: 20px; font-size: 14px; color: #64748b; }
-        .footer a { color: #111827; text-decoration: none; font-weight: bold; }
+        .register-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 24px;
+            width: 100%;
+            max-width: 600px;
+            padding: 40px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+            text-align: center;
+        }
+
+        .logo-header {
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .brand-logo {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            object-fit: cover;
+            margin-bottom: 12px;
+        }
+
+        .brand-title {
+            font-size: 22px;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+
+        .brand-subtitle {
+            font-size: 14px;
+            font-weight: 500;
+            color: #64748b;
+        }
+
+        .divider {
+            width: 100%;
+            height: 1px;
+            background-color: #e2e8f0;
+            margin: 20px 0;
+        }
+
+        .form-header {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+
+        .form-subtitle {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .register-form {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            text-align: left;
+        }
+
+        .form-group label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .input-container {
+            position: relative;
+            width: 100%;
+        }
+
+        .input-container i.field-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .input-container input,
+        .input-container select {
+            width: 100%;
+            padding: 11px 14px 11px 38px;
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 13.5px;
+            color: #1e293b;
+            outline: none;
+            font-family: inherit;
+        }
+
+        .input-container input::placeholder {
+            color: #94a3b8;
+        }
+
+        .input-container input:focus,
+        .input-container select:focus {
+            border-color: #824E39;
+        }
+
+        .input-container .eye-icon {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            font-size: 14px;
+            z-index: 10;
+        }
+
+        .btn-submit {
+            grid-column: span 2;
+            background-color: #824E39;
+            color: #ffffff;
+            border: none;
+            padding: 13px;
+            border-radius: 8px;
+            font-size: 14.5px;
+            font-weight: 700;
+            margin-top: 8px;
+            font-family: inherit;
+            text-align: center;
+        }
+
+        .form-footer {
+            grid-column: span 2;
+            text-align: center;
+            margin-top: 12px;
+            font-size: 13.5px;
+            color: #64748b;
+        }
+
+        .form-footer a {
+            color: #824E39;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        /* Status Cards styling */
+        .status-card {
+            text-align: center;
+            padding: 10px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .status-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            color: #ffffff;
+            margin-bottom: 16px;
+        }
+
+        .status-icon.warning {
+            background-color: #d97706;
+        }
+
+        .status-icon.error {
+            background-color: #dc2626;
+        }
+
+        .status-icon.success {
+            background-color: #16a34a;
+        }
+
+        .status-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 10px;
+        }
+
+        .status-desc {
+            font-size: 14px;
+            color: #475569;
+            line-height: 1.6;
+            margin-bottom: 24px;
+            max-width: 380px;
+        }
+
+        .btn-action {
+            background-color: #824E39;
+            color: #ffffff;
+            border: none;
+            padding: 11px 32px;
+            border-radius: 8px;
+            font-size: 13.5px;
+            font-weight: 700;
+            text-decoration: none;
+            display: inline-block;
+            font-family: inherit;
+        }
+
+        /* Interactive Cursor-only Styles on Hover */
+        .btn-submit:hover,
+        .btn-action:hover,
+        .input-container select:hover,
+        .eye-icon:hover,
+        .form-footer a:hover {
+            cursor: pointer !important;
+        }
+
+        /* Responsive Media Queries */
+        @media (max-width: 600px) {
+            .register-card {
+                padding: 24px;
+                border-radius: 16px;
+            }
+            
+            .register-form {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            
+            .btn-submit,
+            .form-footer {
+                grid-column: span 1;
+            }
+        }
     </style>
 </head>
 <body>
 
-<?php 
-if(isset($_POST['register'])): 
-    $full_name = mysqli_real_escape_string($conn, $_POST['full_name']);
-    $role = mysqli_real_escape_string($conn, $_POST['role']);
-    $user = mysqli_real_escape_string($conn, $_POST['username']);
-    $password = $_POST['password'];
-    $confirm_password = $_POST['confirm_password'];
-
-    // 1. Check if username already exists
-    $check_user = mysqli_query($conn, "SELECT username FROM users WHERE username = '$user'");
-
-    if(mysqli_num_rows($check_user) > 0): ?>
-        <div class="card">
-            <div class="icon-circle" style="background:#f59e0b;">!</div>
-            <h2>Username Taken</h2>
-            <p>The username <strong>"<?php echo htmlspecialchars($user); ?>"</strong> is already in use.</p>
-            <br>
-            <a href="register.php" class="btn-blue">Choose Another</a>
-        </div>
-
-    <?php elseif($password !== $confirm_password): ?>
-        <div class="card">
-            <div class="icon-circle" style="background:#ef4444;">✕</div>
-            <h2>Passwords do not match!</h2>
-            <p>Please ensure both password fields are identical.</p>
-            <br>
-            <a href="register.php" class="btn-blue">Try Again</a>
-        </div>
-
-    <?php else: 
-        // 2. Success: Proceed with Registration
-        $hashed_pass = password_hash($password, PASSWORD_DEFAULT);
-        $query = "INSERT INTO users (full_name, role, username, password) VALUES ('$full_name', '$role', '$user', '$hashed_pass')";
-        
-        if(mysqli_query($conn, $query)): ?>
-            <div class="card">
-                <div class="icon-circle">✓</div>
-                <h2>Account Created!</h2>
-                <p>Your official account has been successfully registered.</p>
-                <br><br>
-                <a href="login.php" class="btn-blue">Login Now</a>
-            </div>
-        <?php else: ?>
-            <div class="card">
-                <div class="icon-circle" style="background:#ef4444;">✕</div>
-                <h2>System Error</h2>
-                <p>Something went wrong. Please contact your administrator.</p>
-                <br>
-                <a href="register.php" class="btn-blue">Go Back</a>
-            </div>
-        <?php endif; ?>
-    <?php endif; ?>
-
-<?php else: ?>
-    <div class="card">
-        <div class="icon-circle">👤</div>
-        <h2>Create Account</h2>
-        <p class="subtitle">Join the Residents' Profiling System</p>
-
-        <form method="POST">
-            <label>Full Name</label>
-            <div class="input-group">
-                <input type="text" name="full_name" placeholder="e.g. Juan Dela Cruz" required>
-            </div>
-
-            <label>Select Role</label>
-            <div class="input-group">
-                <select name="role" required>
-                    <option value="" disabled selected>Select your position</option>
-                    <option value="Secretary">Secretary</option>
-                    <option value="Barangay Captain">Barangay Captain</option>
-                </select>
-            </div>
-
-            <label>Username</label>
-            <div class="input-group">
-                <input type="text" name="username" placeholder="Choose a username" required>
-            </div>
-
-            <label>Password</label>
-            <div class="input-group">
-                <input type="password" id="pass" name="password" placeholder="Create password" required>
-                <i class="fa-regular fa-eye eye-icon" onclick="togglePassword('pass', this)"></i>
-            </div>
-
-            <label>Confirm Password</label>
-            <div class="input-group">
-                <input type="password" id="confirm_pass" name="confirm_password" placeholder="Repeat password" required>
-                <i class="fa-regular fa-eye eye-icon" onclick="togglePassword('confirm_pass', this)"></i>
-            </div>
-
-            <button type="submit" name="register" class="btn-register">Create Account</button>
-        </form>
-
-        <div class="footer">
-            Already have an account? <a href="login.php">Login here</a>
-        </div>
+<div class="register-card">
+    <!-- Header with logo and system branding -->
+    <div class="logo-header">
+        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRFPOnNDg4Y5AhoHbUTqz-33jP3WX2ehWimhg&s" class="brand-logo" alt="Barangay Logo">
+        <h1 class="brand-title">Barangay Pulantubig</h1>
+        <div class="brand-subtitle">Residents' Profiling System</div>
     </div>
-<?php endif; ?>
+    
+    <div class="divider"></div>
+    
+    <?php 
+    if(isset($_POST['register'])): 
+        $first_name = mysqli_real_escape_string($conn, $_POST['first_name']);
+        $middle_name = mysqli_real_escape_string($conn, $_POST['middle_name']);
+        $last_name = mysqli_real_escape_string($conn, $_POST['last_name']);
+        $role = mysqli_real_escape_string($conn, $_POST['role']);
+        $user = mysqli_real_escape_string($conn, $_POST['username']);
+        $email = trim($_POST['email'] ?? '');
+        $password = $_POST['password'];
+        $confirm_password = $_POST['confirm_password'];
+        $email_col_exists = false;
+        $allowed_roles = ['Secretary', 'Barangay Captain'];
+
+        $col_check = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'email'");
+        if ($col_check && mysqli_num_rows($col_check) > 0) {
+            $email_col_exists = true;
+        }
+
+        // 1. Check if username already exists
+        $check_user = mysqli_query($conn, "SELECT username FROM users WHERE username = '$user'");
+
+        if(!in_array($role, $allowed_roles, true)): ?>
+            <div class="status-card">
+                <div class="status-icon warning">
+                    <i class="fa-solid fa-exclamation"></i>
+                </div>
+                <h2 class="status-title">Invalid Role</h2>
+                <p class="status-desc">Please choose a valid system role before creating an account.</p>
+                <a href="register.php" class="btn-action">Go Back</a>
+            </div>
+
+        <?php elseif($role === 'Barangay Captain' && active_captain_exists($conn)): ?>
+            <div class="status-card">
+                <div class="status-icon warning">
+                    <i class="fa-solid fa-exclamation"></i>
+                </div>
+                <h2 class="status-title">Captain Already Exists</h2>
+                <p class="status-desc">Only one Barangay Captain account can be active in the system.</p>
+                <a href="register.php" class="btn-action">Choose Another Role</a>
+            </div>
+
+        <?php elseif(mysqli_num_rows($check_user) > 0): ?>
+            <div class="status-card">
+                <div class="status-icon warning">
+                    <i class="fa-solid fa-exclamation"></i>
+                </div>
+                <h2 class="status-title">Username Taken</h2>
+                <p class="status-desc">The username <strong>"<?php echo htmlspecialchars($user); ?>"</strong> is already in use by another account.</p>
+                <a href="register.php" class="btn-action">Choose Another</a>
+            </div>
+
+        <?php elseif($email_col_exists && $email === ''): ?>
+            <div class="status-card">
+                <div class="status-icon warning">
+                    <i class="fa-solid fa-exclamation"></i>
+                </div>
+                <h2 class="status-title">Email Required</h2>
+                <p class="status-desc">Please provide a valid email address to complete registration.</p>
+                <a href="register.php" class="btn-action">Go Back</a>
+            </div>
+
+        <?php elseif($email_col_exists && mysqli_num_rows(mysqli_query($conn, "SELECT id FROM users WHERE LOWER(email) = '" . mysqli_real_escape_string($conn, strtolower($email)) . "' LIMIT 1")) > 0): ?>
+            <div class="status-card">
+                <div class="status-icon warning">
+                    <i class="fa-solid fa-exclamation"></i>
+                </div>
+                <h2 class="status-title">Email Taken</h2>
+                <p class="status-desc">The email address <strong>"<?php echo htmlspecialchars($email); ?>"</strong> is already registered.</p>
+                <a href="register.php" class="btn-action">Choose Another</a>
+            </div>
+
+        <?php elseif($password !== $confirm_password): ?>
+            <div class="status-card">
+                <div class="status-icon error">
+                    <i class="fa-solid fa-xmark"></i>
+                </div>
+                <h2 class="status-title">Passwords Mismatch</h2>
+                <p class="status-desc">The passwords you entered do not match. Please ensure both fields are identical.</p>
+                <a href="register.php" class="btn-action">Try Again</a>
+            </div>
+
+        <?php else: 
+            // 2. Success: Proceed with Registration
+            $safe_email = mysqli_real_escape_string($conn, $email);
+            $hashed_pass = password_hash($password, PASSWORD_DEFAULT);
+            if ($email_col_exists) {
+                $query = "INSERT INTO users (first_name, middle_name, last_name, role, username, email, password) VALUES ('$first_name', '$middle_name', '$last_name', '$role', '$user', '$safe_email', '$hashed_pass')";
+            } else {
+                $query = "INSERT INTO users (first_name, middle_name, last_name, role, username, password) VALUES ('$first_name', '$middle_name', '$last_name', '$role', '$user', '$hashed_pass')";
+            }
+            
+            if(mysqli_query($conn, $query)): ?>
+                <div class="status-card">
+                    <div class="status-icon success">
+                        <i class="fa-solid fa-check"></i>
+                    </div>
+                    <h2 class="status-title">Account Created!</h2>
+                    <p class="status-desc">Your official account has been successfully registered. You may now access the system.</p>
+                    <a href="login.php" class="btn-action">Login Now</a>
+                </div>
+            <?php else: ?>
+                <div class="status-card">
+                    <div class="status-icon error">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <h2 class="status-title">System Error</h2>
+                    <p class="status-desc">Something went wrong during registration. Please contact your system administrator.</p>
+                    <a href="register.php" class="btn-action">Go Back</a>
+                </div>
+            <?php endif; ?>
+        <?php endif; ?>
+
+    <?php else: ?>
+        <!-- Registration Form -->
+        <div class="form-header">
+            <h2 class="form-title">Create Account</h2>
+            <p class="form-subtitle">Register to join the Residents' Profiling System</p>
+        </div>
+
+        <form id="register-form" class="register-form" method="POST">
+            <!-- Personal Details Section -->
+            <div class="form-group">
+                <label for="first_name">First Name</label>
+                <div class="input-container">
+                    <i class="fa-solid fa-user field-icon"></i>
+                    <input type="text" id="first_name" name="first_name" placeholder="e.g. Juan" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="middle_name">Middle Name</label>
+                <div class="input-container">
+                    <i class="fa-solid fa-user field-icon"></i>
+                    <input type="text" id="middle_name" name="middle_name" placeholder="e.g. Dela">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="last_name">Last Name</label>
+                <div class="input-container">
+                    <i class="fa-solid fa-user field-icon"></i>
+                    <input type="text" id="last_name" name="last_name" placeholder="e.g. Cruz" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="role">Select Role</label>
+                <div class="input-container">
+                    <i class="fa-solid fa-user-tag field-icon"></i>
+                    <select id="role" name="role" required>
+                        <option value="" disabled selected>Select position</option>
+                        <option value="Secretary">Secretary</option>
+                        <?php if (!$captain_exists): ?>
+                            <option value="Barangay Captain">Barangay Captain</option>
+                        <?php endif; ?>
+                    </select>
+                </div>
+                <!-- <?php if ($captain_exists): ?>
+                    <small style="color:#64748b; margin-top:6px;">Only one Barangay Captain account can be active.</small>
+                <?php endif; ?> -->
+            </div>
+
+            <!-- Account Credentials -->
+            <div class="form-group">
+                <label for="username">Username</label>
+                <div class="input-container">
+                    <i class="fa-solid fa-at field-icon"></i>
+                    <input type="text" id="username" name="username" placeholder="Choose a username" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <div class="input-container">
+                    <i class="fa-solid fa-envelope field-icon"></i>
+                    <input type="email" id="email" name="email" placeholder="name@example.com" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="pass">Password</label>
+                <div class="input-container">
+                    <i class="fa-solid fa-lock field-icon"></i>
+                    <input type="password" id="pass" name="password" placeholder="Create password" required>
+                    <i class="fa-regular fa-eye eye-icon" onclick="togglePassword('pass', this)"></i>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="confirm_pass">Confirm Password</label>
+                <div class="input-container">
+                    <i class="fa-solid fa-lock-open field-icon"></i>
+                    <input type="password" id="confirm_pass" name="confirm_password" placeholder="Repeat password" required>
+                    <i class="fa-regular fa-eye eye-icon" onclick="togglePassword('confirm_pass', this)"></i>
+                </div>
+            </div>
+
+            <button type="submit" name="register" class="btn-submit">Create Account</button>
+            
+            <div class="form-footer">
+                Already have an account? <a href="login.php">Login here</a>
+            </div>
+        </form>
+    <?php endif; ?>
+</div>
 
 <script>
     function togglePassword(inputId, icon) {
@@ -155,21 +508,7 @@ if(isset($_POST['register'])):
         }
     }
 </script>
+<?php render_form_draft_script('#register-form', 'register-account'); ?>
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

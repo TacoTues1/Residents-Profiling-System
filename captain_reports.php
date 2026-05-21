@@ -7,6 +7,32 @@ if(!isset($_SESSION['role']) || $_SESSION['role'] !== 'Barangay Captain') {
     exit();
 }
 
+function report_column_exists($conn, $table, $column) {
+    $safe_table = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+    $safe_column = mysqli_real_escape_string($conn, $column);
+    $check = mysqli_query($conn, "SHOW COLUMNS FROM `$safe_table` LIKE '$safe_column'");
+    return $check && mysqli_num_rows($check) > 0;
+}
+
+function report_first_existing_column($conn, $table, $columns) {
+    foreach ($columns as $column) {
+        if (report_column_exists($conn, $table, $column)) {
+            return $column;
+        }
+    }
+
+    return null;
+}
+
+function report_format_date_value($value) {
+    if ($value === null || $value === '' || $value === '0000-00-00' || $value === '0000-00-00 00:00:00') {
+        return 'Not recorded';
+    }
+
+    $timestamp = strtotime($value);
+    return $timestamp ? date('M d, Y', $timestamp) : $value;
+}
+
 // Analytics Queries
 $hh_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM households"))['c'] ?? 0;
 $res_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM residents WHERE COALESCE(is_archived, 0) = 0"))['c'] ?? 0;
@@ -16,6 +42,21 @@ $pwd_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM r
 $fps_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM residents WHERE COALESCE(is_archived, 0) = 0 AND COALESCE(is_4ps, 0) = 1"))['c'] ?? 0;
 $solo_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM residents WHERE COALESCE(is_archived, 0) = 0 AND COALESCE(is_solo, 0) = 1"))['c'] ?? 0;
 $minor_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM residents WHERE COALESCE(is_archived, 0) = 0 AND age <= 17"))['c'] ?? 0;
+$adult_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM residents WHERE COALESCE(is_archived, 0) = 0 AND age BETWEEN 18 AND 59"))['c'] ?? 0;
+$male_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM residents WHERE COALESCE(is_archived, 0) = 0 AND gender = 'Male'"))['c'] ?? 0;
+$female_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM residents WHERE COALESCE(is_archived, 0) = 0 AND gender = 'Female'"))['c'] ?? 0;
+$gender_unspecified_count = max(0, (int)$res_count - (int)$male_count - (int)$female_count);
+$non_voters_count = max(0, (int)$res_count - (int)$voters_count);
+
+$date_columns = ['created_at', 'date_added', 'added_at', 'registered_at', 'created_on', 'date_created'];
+$resident_added_column = report_first_existing_column($conn, 'residents', $date_columns);
+$household_added_column = report_first_existing_column($conn, 'households', array_merge($date_columns, ['survey_date']));
+$household_added_select = $household_added_column ? "h.`$household_added_column`" : "NULL";
+$resident_added_select = $resident_added_column ? "r.`$resident_added_column`" : $household_added_select;
+$resident_date_source = $resident_added_column
+    ? ucwords(str_replace('_', ' ', $resident_added_column))
+    : ($household_added_column ? 'Household ' . ucwords(str_replace('_', ' ', $household_added_column)) : 'Not recorded');
+$household_date_source = $household_added_column ? ucwords(str_replace('_', ' ', $household_added_column)) : 'Not recorded';
 
 // Demographic breakdown by Purok
 $purok_report_query = mysqli_query($conn, "
@@ -34,7 +75,9 @@ $purok_report_query = mysqli_query($conn, "
 
 // Residents List Query
 $residents_query = mysqli_query($conn, "
-    SELECT r.*, COALESCE(NULLIF(TRIM(h.purok), ''), 'Unspecified') as purok_name 
+    SELECT r.*, COALESCE(NULLIF(TRIM(h.purok), ''), 'Unspecified') as purok_name,
+           h.address as household_address,
+           $resident_added_select as added_date
     FROM residents r 
     LEFT JOIN households h ON r.household_no = h.household_no 
     WHERE COALESCE(r.is_archived, 0) = 0 
@@ -45,10 +88,46 @@ $residents_query = mysqli_query($conn, "
 $households_query = mysqli_query($conn, "
     SELECT h.*, 
         (SELECT CONCAT(last_name, ', ', first_name) FROM residents r WHERE r.household_no = h.household_no AND relationship = 'head' AND COALESCE(r.is_archived, 0) = 0 LIMIT 1) as head_name,
-        (SELECT COUNT(*) FROM residents r WHERE r.household_no = h.household_no AND COALESCE(r.is_archived, 0) = 0) as member_count
+        (SELECT COUNT(*) FROM residents r WHERE r.household_no = h.household_no AND COALESCE(r.is_archived, 0) = 0) as member_count,
+        $household_added_select as added_date
     FROM households h 
     ORDER BY CAST(h.household_no AS UNSIGNED) ASC, h.household_no ASC
 ");
+
+$pdf_residents = [];
+if ($residents_query) {
+    mysqli_data_seek($residents_query, 0);
+    while ($r_pdf = mysqli_fetch_assoc($residents_query)) {
+        $pdf_residents[] = [
+            'name' => trim(($r_pdf['last_name'] ?? '') . ', ' . ($r_pdf['first_name'] ?? '') . (($r_pdf['middle_name'] ?? '') !== '' ? ' ' . $r_pdf['middle_name'] : '')),
+            'household_no' => $r_pdf['household_no'] ?? 'N/A',
+            'purok' => $r_pdf['purok_name'] ?? 'Unspecified',
+            'address' => $r_pdf['household_address'] ?? 'N/A',
+            'relationship' => $r_pdf['relationship'] ?? 'N/A',
+            'civil_status' => $r_pdf['civil_status'] ?? 'N/A',
+            'gender' => $r_pdf['gender'] ?? 'N/A',
+            'age' => $r_pdf['age'] ?? 'N/A',
+            'added' => report_format_date_value($r_pdf['added_date'] ?? null),
+        ];
+    }
+    mysqli_data_seek($residents_query, 0);
+}
+
+$pdf_households = [];
+if ($households_query) {
+    mysqli_data_seek($households_query, 0);
+    while ($h_pdf = mysqli_fetch_assoc($households_query)) {
+        $pdf_households[] = [
+            'household_no' => $h_pdf['household_no'] ?? 'N/A',
+            'address' => $h_pdf['address'] ?? 'N/A',
+            'purok' => $h_pdf['purok'] ?? 'Unspecified',
+            'head_name' => $h_pdf['head_name'] ?? 'N/A',
+            'member_count' => $h_pdf['member_count'] ?? '0',
+            'added' => report_format_date_value($h_pdf['added_date'] ?? null),
+        ];
+    }
+    mysqli_data_seek($households_query, 0);
+}
 ?>
 
 <!DOCTYPE html>
@@ -409,6 +488,66 @@ $households_query = mysqli_query($conn, "
 </div>
 
 <script>
+const overviewPieCharts = [
+    {
+        id: 'genderPieChart',
+        title: 'Gender Distribution',
+        labels: ['Male', 'Female', 'Unspecified'],
+        values: [
+            <?php echo (int)$male_count; ?>,
+            <?php echo (int)$female_count; ?>,
+            <?php echo (int)$gender_unspecified_count; ?>
+        ],
+        colors: ['#2563eb', '#ec4899', '#94a3b8']
+    },
+    {
+        id: 'voterPieChart',
+        title: 'Voter Status',
+        labels: ['Registered Voters', 'Not Registered'],
+        values: [
+            <?php echo (int)$voters_count; ?>,
+            <?php echo (int)$non_voters_count; ?>
+        ],
+        colors: ['#10b981', '#f59e0b']
+    },
+    {
+        id: 'agePieChart',
+        title: 'Age Groups',
+        labels: ['Minors', 'Adults', 'Senior Citizens'],
+        values: [
+            <?php echo (int)$minor_count; ?>,
+            <?php echo (int)$adult_count; ?>,
+            <?php echo (int)$senior_count; ?>
+        ],
+        colors: ['#8b5cf6', '#0ea5e9', '#f97316']
+    }
+];
+const pdfResidents = <?php echo json_encode($pdf_residents, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+const pdfHouseholds = <?php echo json_encode($pdf_households, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+const pdfDateSources = {
+    resident: <?php echo json_encode($resident_date_source); ?>,
+    household: <?php echo json_encode($household_date_source); ?>
+};
+
+function normalizePieDataset(chart) {
+    const hasData = chart.values.some(value => Number(value) > 0);
+    if (hasData) {
+        return {
+            labels: chart.labels,
+            values: chart.values,
+            legendValues: chart.values,
+            colors: chart.colors
+        };
+    }
+
+    return {
+        labels: ['No Data'],
+        values: [1],
+        legendValues: [0],
+        colors: ['#e2e8f0']
+    };
+}
+
 function switchReport(reportType, tabElement, subtitleText) {
     // Hide all report sections
     const sections = document.querySelectorAll('.report-section');
@@ -450,7 +589,8 @@ async function downloadDirectPDF() {
     const logoX = margin;
     const logoY = 12;
     
-    // Try to load and add the barangay logo (only colored element)
+    // Try to load and add the barangay logo (left) and DGTE logo (right)
+    const rightLogoSize = 18;
     try {
         const logoImg = new Image();
         logoImg.crossOrigin = 'anonymous';
@@ -471,10 +611,33 @@ async function downloadDirectPDF() {
     } catch(e) {
         console.warn('Could not load logo for PDF:', e);
     }
+
+    // Add DGTE logo on the top-right (if available)
+    try {
+        const rightImg = new Image();
+        rightImg.crossOrigin = 'anonymous';
+        rightImg.src = 'logo/dgte.png';
+        await new Promise((resolve, reject) => {
+            rightImg.onload = resolve;
+            rightImg.onerror = reject;
+            setTimeout(reject, 3000);
+        });
+        const canvasR = document.createElement('canvas');
+        canvasR.width = rightImg.naturalWidth;
+        canvasR.height = rightImg.naturalHeight;
+        const ctxR = canvasR.getContext('2d');
+        ctxR.drawImage(rightImg, 0, 0);
+        const rightDataUrl = canvasR.toDataURL('image/png');
+        const rightLogoX = pageWidth - margin - rightLogoSize;
+        const rightLogoY = 12;
+        doc.addImage(rightDataUrl, 'PNG', rightLogoX, rightLogoY, rightLogoSize, rightLogoSize);
+    } catch (e) {
+        console.warn('Could not load DGTE logo for PDF:', e);
+    }
     
     // Center the title text in the page (black text only)
     const textAreaStart = margin + logoSize + 4;
-    const textAreaEnd = pageWidth - margin;
+    const textAreaEnd = pageWidth - margin - rightLogoSize - 4;
     const centerX = (textAreaStart + textAreaEnd) / 2;
     
     doc.setTextColor(0, 0, 0);
@@ -490,10 +653,261 @@ async function downloadDirectPDF() {
     doc.line(margin, y, pageWidth - margin, y);
     y += 10;
     
-    // === Black & white table styles ===
-    const bwHeadStyles = { fillColor: [0, 0, 0], textColor: [255, 255, 255], fontStyle: 'bold' };
-    const bwBodyStyles = { textColor: [0, 0, 0] };
-    const bwAltRow = { fillColor: [255, 255, 255] };
+    // === Dashboard-style report content ===
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const contentWidth = pageWidth - margin * 2;
+    const dashboard = {
+        pageBg: [248, 250, 252],
+        cardBg: [255, 255, 255],
+        border: [226, 232, 240],
+        muted: [100, 116, 139],
+        text: [15, 23, 42],
+        dark: [30, 41, 59],
+        accent: [130, 78, 57],
+        accentSoft: [248, 241, 238],
+        green: [16, 185, 129],
+        greenSoft: [220, 252, 231]
+    };
+
+    function ensureSpace(requiredHeight) {
+        if (y + requiredHeight > pageHeight - 16) {
+            doc.addPage();
+            y = 18;
+        }
+    }
+
+    function drawPanelTitle(title, subtitle = '') {
+        const panelHeight = subtitle ? 18 : 13;
+        ensureSpace(panelHeight + 4);
+
+        doc.setTextColor(...dashboard.text);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(17);
+        doc.text(title, margin, y + 1);
+
+        if (subtitle) {
+            doc.setTextColor(...dashboard.muted);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(11);
+            doc.text(subtitle, margin, y + 9);
+        }
+
+        y += panelHeight + 5;
+    }
+
+    function drawStatCards(cards) {
+        const gap = 4;
+        const columns = 4;
+        const cardWidth = (contentWidth - gap * (columns - 1)) / columns;
+        const cardHeight = 24;
+        const totalRows = Math.ceil(cards.length / columns);
+
+        ensureSpace(totalRows * (cardHeight + gap) + 4);
+        cards.forEach((card, index) => {
+            const col = index % columns;
+            const rowY = y + Math.floor(index / columns) * (cardHeight + gap);
+            const x = margin + col * (cardWidth + gap);
+
+            doc.setFillColor(...dashboard.cardBg);
+            doc.roundedRect(x, rowY, cardWidth, cardHeight, 3, 3, 'F');
+            doc.setDrawColor(...dashboard.border);
+            doc.setLineWidth(0.2);
+            doc.roundedRect(x, rowY, cardWidth, cardHeight, 3, 3, 'S');
+
+            const isGreen = index === 2 || index === 5;
+            doc.setFillColor(...(isGreen ? dashboard.greenSoft : dashboard.accentSoft));
+            doc.roundedRect(x + cardWidth - 11, rowY + 5, 6, 6, 2, 2, 'F');
+            doc.setFillColor(...(isGreen ? dashboard.green : dashboard.accent));
+            doc.circle(x + cardWidth - 8, rowY + 8, 1.5, 'F');
+
+            doc.setTextColor(...dashboard.muted);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(6.5);
+            const labelLines = doc.splitTextToSize(card.label.toUpperCase(), cardWidth - 14);
+            doc.text(labelLines.slice(0, 2), x + 5, rowY + 7);
+
+            doc.setTextColor(...dashboard.text);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(15);
+            doc.text(card.value, x + 5, rowY + 19);
+        });
+
+        y += totalRows * (cardHeight + gap) + 4;
+    }
+
+    function createPieChartCanvas(chart) {
+        const data = normalizePieDataset(chart);
+        const canvas = document.createElement('canvas');
+        canvas.width = 420;
+        canvas.height = 420;
+        const ctx = canvas.getContext('2d');
+        const total = data.values.reduce((sum, value) => sum + Number(value), 0) || 1;
+        const centerX = 210;
+        const centerY = 210;
+        const radius = 170;
+        let startAngle = -Math.PI / 2;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        data.values.forEach((rawValue, index) => {
+            const value = Number(rawValue);
+            const slice = (value / total) * Math.PI * 2;
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.arc(centerX, centerY, radius, startAngle, startAngle + slice);
+            ctx.closePath();
+            ctx.fillStyle = data.colors[index];
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 5;
+            ctx.stroke();
+            startAngle += slice;
+        });
+
+        return canvas;
+    }
+
+    function drawOverviewPieChartImages() {
+        const charts = overviewPieCharts;
+
+        if (charts.length === 0) return;
+
+        drawPanelTitle('Pie Chart Summary', 'Visual breakdown from the report dashboard');
+
+        const gap = 5;
+        const columns = 3;
+        const cardWidth = (contentWidth - gap * (columns - 1)) / columns;
+        const cardHeight = 66;
+        ensureSpace(cardHeight + 8);
+
+        charts.forEach((chart, index) => {
+            const x = margin + (index % columns) * (cardWidth + gap);
+            const data = normalizePieDataset(chart);
+            const pieSize = 26;
+
+            doc.setTextColor(...dashboard.text);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
+            doc.text(chart.title, x, y + 7);
+
+            try {
+                const chartCanvas = createPieChartCanvas(chart);
+                const imgData = chartCanvas.toDataURL('image/png', 1.0);
+                doc.addImage(imgData, 'PNG', x, y + 14, pieSize, pieSize);
+            } catch (e) {
+                doc.setTextColor(...dashboard.muted);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.text('Chart unavailable', x, y + 30);
+            }
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(7.2);
+            let legendY = y + 17;
+            data.labels.forEach((label, legendIndex) => {
+                const legendX = x + pieSize + 5;
+                const value = Number(data.legendValues[legendIndex] || 0);
+                const valueText = value.toLocaleString();
+                const swatchSize = 3;
+                const labelX = legendX + swatchSize + 2;
+                const valueX = x + cardWidth - 1;
+                const valueWidth = doc.getTextWidth(valueText);
+                const labelMaxWidth = Math.max(10, valueX - labelX - valueWidth - 2);
+                const labelLines = doc.splitTextToSize(String(label), labelMaxWidth).slice(0, 2);
+
+                doc.setFillColor(data.colors[legendIndex]);
+                doc.rect(legendX, legendY - 3, swatchSize, swatchSize, 'F');
+                doc.setTextColor(...dashboard.text);
+                doc.setFont('helvetica', 'normal');
+                doc.text(labelLines, labelX, legendY);
+                doc.setFont('helvetica', 'bold');
+                doc.text(valueText, valueX, legendY, { align: 'right' });
+                legendY += Math.max(7, labelLines.length * 4 + 2);
+            });
+        });
+
+        y += cardHeight + 8;
+    }
+
+    // Record-date note removed per request
+
+    function getPdfHouseholdTableBody() {
+        return pdfHouseholds.map(item => [
+            item.household_no || 'N/A',
+            item.address || 'N/A',
+            item.purok || 'Unspecified',
+            item.head_name || 'N/A',
+            String(item.member_count || '0'),
+            item.added || 'Not recorded'
+        ]);
+    }
+
+    function getPdfResidentTableBody() {
+        return pdfResidents.map(item => [
+            item.name || 'N/A',
+            item.household_no || 'N/A',
+            item.purok || 'Unspecified',
+            item.address || 'N/A',
+            item.gender || 'N/A',
+            String(item.age || 'N/A'),
+            item.added || 'Not recorded'
+        ]);
+    }
+
+    function renderDashboardTable(title, headers, body, options = {}) {
+        if (!headers.length) return;
+        if (title) {
+            drawPanelTitle(title, options.subtitle || '');
+        } else {
+            ensureSpace(18);
+        }
+
+        doc.autoTable({
+            head: [headers],
+            body: body.length > 0 ? body : [Array(headers.length).fill('No data available')],
+            startY: y,
+            margin: { left: margin, right: margin },
+            theme: 'grid',
+            styles: {
+                fontSize: options.fontSize || 8,
+                cellPadding: 3,
+                textColor: dashboard.text,
+                lineColor: dashboard.border,
+                lineWidth: 0.15,
+                overflow: 'linebreak',
+                valign: 'middle'
+            },
+            headStyles: {
+                fillColor: dashboard.dark,
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+                fontSize: options.headFontSize || 7.5,
+                halign: 'left'
+            },
+            bodyStyles: { fillColor: dashboard.cardBg },
+            alternateRowStyles: { fillColor: dashboard.pageBg },
+            didParseCell: function(data) {
+                if (data.section === 'body' && data.column.index === 0) {
+                    data.cell.styles.fontStyle = 'bold';
+                    data.cell.styles.textColor = dashboard.text;
+                }
+            }
+        });
+
+        y = doc.lastAutoTable.finalY + 8;
+    }
+
+    function drawHouseholdGroupHeader(text) {
+        const lines = doc.splitTextToSize(text, contentWidth - 12);
+        const height = Math.max(13, lines.length * 5 + 5);
+        ensureSpace(height + 8);
+        doc.setTextColor(...dashboard.text);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.text(lines, margin, y + 3);
+        y += height + 4;
+    }
     
     // Helper: extract table data from DOM
     function getTableData(table) {
@@ -511,136 +925,73 @@ async function downloadDirectPDF() {
     const activeSection = document.querySelector('.report-section.active');
     if (!activeSection) return;
     const sectionId = activeSection.id;
+
+    if (sectionId !== 'report-all') {
+        drawOverviewPieChartImages();
+    }
     
     // --- OVERVIEW SECTION ---
     if (sectionId === 'report-all') {
-        // Stat cards as a summary table
-        const statCards = activeSection.querySelectorAll('.stat-card');
-        if (statCards.length > 0) {
-            const statHeaders = [];
-            const statValues = [];
-            statCards.forEach(card => {
-                const label = card.querySelector('p')?.innerText.trim() || '';
-                const value = card.querySelector('h2')?.innerText.trim() || '0';
-                statHeaders.push(label);
-                statValues.push(value);
-            });
-            
-            doc.autoTable({
-                head: [statHeaders],
-                body: [statValues],
-                startY: y,
-                margin: { left: margin, right: margin },
-                styles: { fontSize: 8, cellPadding: 4, halign: 'center', textColor: [0, 0, 0] },
-                headStyles: { ...bwHeadStyles, fontSize: 7 },
-                bodyStyles: { fontStyle: 'bold', fontSize: 14, textColor: [0, 0, 0] },
-                alternateRowStyles: bwAltRow,
-                theme: 'grid'
-            });
-            y = doc.lastAutoTable.finalY + 10;
-        }
-        
-        // Purok demographics table
-        const tables = activeSection.querySelectorAll('table');
-        tables.forEach(table => {
-            const { headers, body } = getTableData(table);
-            if (headers.length > 0 && body.length > 0) {
-                const reportHeader = table.closest('.report-panel')?.querySelector('.report-header h3');
-                if (reportHeader) {
-                    doc.setTextColor(0, 0, 0);
-                    doc.setFontSize(13);
-                    doc.setFont('helvetica', 'bold');
-                    doc.text(reportHeader.innerText.trim(), margin, y);
-                    y += 6;
-                }
-                
-                doc.autoTable({
-                    head: [headers],
-                    body: body,
-                    startY: y,
-                    margin: { left: margin, right: margin },
-                    styles: { fontSize: 9, cellPadding: 3, textColor: [0, 0, 0] },
-                    headStyles: { ...bwHeadStyles, fontSize: 8 },
-                    alternateRowStyles: bwAltRow,
-                    theme: 'grid'
-                });
-                y = doc.lastAutoTable.finalY + 10;
-            }
-        });
+        drawOverviewPieChartImages();
+        renderDashboardTable(
+            'Household List',
+            ['Household No.', 'Address', 'Purok', 'Head of Family', 'Members', 'Added'],
+            getPdfHouseholdTableBody(),
+            { subtitle: 'Households with date added and area assignment', fontSize: 7.5, headFontSize: 7 }
+        );
+        renderDashboardTable(
+            'Residents List',
+            ['Resident', 'Household No.', 'Purok', 'Household Address', 'Sex', 'Age', 'Added'],
+            getPdfResidentTableBody(),
+            { subtitle: 'Residents with the household and location they belong to', fontSize: 6.8, headFontSize: 6.8 }
+        );
     }
     
     // --- RESIDENTS / HOUSEHOLDS LIST ---
     if (sectionId === 'report-residents' || sectionId === 'report-households') {
         const reportHeader = activeSection.querySelector('.report-header h3');
-        if (reportHeader) {
-            doc.setTextColor(0, 0, 0);
-            doc.setFontSize(14);
-            doc.setFont('helvetica', 'bold');
-            doc.text(reportHeader.innerText.trim(), margin, y);
-            y += 8;
-        }
-        
-        const table = activeSection.querySelector('table');
-        if (table) {
-            const { headers, body } = getTableData(table);
-            doc.autoTable({
-                head: [headers],
-                body: body,
-                startY: y,
-                margin: { left: margin, right: margin },
-                styles: { fontSize: 8, cellPadding: 3, textColor: [0, 0, 0] },
-                headStyles: { ...bwHeadStyles, fontSize: 8 },
-                alternateRowStyles: bwAltRow,
-                theme: 'grid'
-            });
+
+        if (sectionId === 'report-residents') {
+            renderDashboardTable(
+                reportHeader ? reportHeader.innerText.trim() : 'Report Details',
+                ['Resident', 'Household No.', 'Purok', 'Household Address', 'Sex', 'Age', 'Added'],
+                getPdfResidentTableBody(),
+                { subtitle: 'Active residents with the household and location they belong to', fontSize: 6.8, headFontSize: 6.8 }
+            );
+        } else {
+            renderDashboardTable(
+                reportHeader ? reportHeader.innerText.trim() : 'Report Details',
+                ['Household No.', 'Address', 'Purok', 'Head of Family', 'Members', 'Added'],
+                getPdfHouseholdTableBody(),
+                { subtitle: 'Household records with date added and member counts', fontSize: 7.5, headFontSize: 7 }
+            );
         }
     }
     
     // --- HOUSEHOLDS WITH MEMBERS ---
     if (sectionId === 'report-hh-members') {
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Households with Resident Members', margin, y);
-        y += 8;
-        
-        const hhGroups = activeSection.querySelectorAll('.hh-group-header');
-        hhGroups.forEach((header, idx) => {
-            const table = header.nextElementSibling;
-            if (!table || table.tagName !== 'TABLE') return;
-            
-            // Check if we need a new page
-            if (y > doc.internal.pageSize.getHeight() - 40) {
-                doc.addPage();
-                y = 20;
-            }
-            
-            // Household group header (black & white)
-            doc.setFillColor(230, 230, 230);
-            doc.rect(margin, y - 4, pageWidth - margin * 2, 8, 'F');
-            doc.setDrawColor(0, 0, 0);
-            doc.setLineWidth(1);
-            doc.line(margin, y - 4, margin, y + 4);
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(0, 0, 0);
-            doc.text(header.innerText.trim(), margin + 4, y + 1);
-            y += 8;
-            
-            const { headers: th, body: tb } = getTableData(table);
-            if (th.length > 0) {
-                doc.autoTable({
-                    head: [th],
-                    body: tb.length > 0 ? tb : [Array(th.length).fill('No members')],
-                    startY: y,
-                    margin: { left: margin, right: margin },
-                    styles: { fontSize: 8, cellPadding: 2.5, textColor: [0, 0, 0] },
-                    headStyles: { ...bwHeadStyles, fontSize: 7 },
-                    alternateRowStyles: bwAltRow,
-                    theme: 'grid'
-                });
-                y = doc.lastAutoTable.finalY + 6;
-            }
+        drawPanelTitle('Households with Resident Members', 'Grouped household records and active member lists');
+
+        pdfHouseholds.forEach((household) => {
+            drawHouseholdGroupHeader(`Household #${household.household_no || 'N/A'} - Address: ${(household.address || 'N/A')}, ${(household.purok || 'Unspecified')} - Added: ${(household.added || 'Not recorded')}`);
+
+            const members = pdfResidents
+                .filter((resident) => String(resident.household_no || '') === String(household.household_no || ''))
+                .map((resident) => [
+                    resident.name || 'N/A',
+                    resident.relationship || 'N/A',
+                    resident.gender || 'N/A',
+                    String(resident.age || 'N/A'),
+                    resident.civil_status || 'N/A',
+                    resident.added || 'Not recorded'
+                ]);
+
+            renderDashboardTable(
+                '',
+                ['Resident', 'Relationship', 'Sex', 'Age', 'Civil Status', 'Added'],
+                members.length > 0 ? members : [['No active members recorded', '', '', '', '', '']],
+                { fontSize: 7.2, headFontSize: 7 }
+            );
         });
     }
     

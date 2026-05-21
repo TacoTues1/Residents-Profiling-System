@@ -1,5 +1,6 @@
 <?php
 include('db.php');
+include_once('toast_helpers.php');
 session_start();
 
 // Security check: Only Secretary role
@@ -8,10 +9,22 @@ if(!isset($_SESSION['role']) || $_SESSION['role'] !== 'Secretary') {
     exit();
 }
 
+$page_toasts = [];
+if (!empty($_SESSION['toast_error'])) {
+    $page_toasts[] = app_toast_from_message($_SESSION['toast_error']);
+    unset($_SESSION['toast_error']);
+}
+
 // 1. DATA FETCHING (To replicate the background)
 $household_no = $_GET['household_no'] ?? '';
 $member_id = $_GET['id'] ?? '';
 $safe_hh_no = mysqli_real_escape_string($conn, $household_no);
+
+$proof_col_exists = false;
+$proof_col_check = mysqli_query($conn, "SHOW COLUMNS FROM residents LIKE 'deceased_proof_path'");
+if ($proof_col_check && mysqli_num_rows($proof_col_check) > 0) {
+    $proof_col_exists = true;
+}
 
 // Fetch Household  Info for background
 $query_h = "SELECT * FROM households WHERE household_no = '$safe_hh_no'";
@@ -32,14 +45,64 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirm_archive'])) {
     $m_id = mysqli_real_escape_string($conn, $_POST['id']);
     $h_no = mysqli_real_escape_string($conn, $_POST['household_no']);
     $reason = mysqli_real_escape_string($conn, trim($_POST['archive_reason'] ?? 'Archived'));
+    $proof_update_sql = '';
+    $errors = [];
 
     if ($reason === '') {
         $reason = 'Archived';
     }
 
-    $update = "UPDATE residents SET is_archived = 1, archive_reason = '$reason', status = '$reason' WHERE id = '$m_id'";
+    if ($reason === 'Deceased') {
+        if (!$proof_col_exists) {
+            $errors[] = 'Database is missing the deceased proof column.';
+        }
+
+        $existing_proof = '';
+        if ($proof_col_exists) {
+            $proof_res = mysqli_query($conn, "SELECT deceased_proof_path FROM residents WHERE id = '$m_id' LIMIT 1");
+            if ($proof_res) {
+                $proof_row = mysqli_fetch_assoc($proof_res);
+                $existing_proof = $proof_row['deceased_proof_path'] ?? '';
+            }
+        }
+
+        if (isset($_FILES['deceased_proof']) && $_FILES['deceased_proof']['error'] !== UPLOAD_ERR_NO_FILE) {
+            if ($_FILES['deceased_proof']['error'] === UPLOAD_ERR_OK) {
+                $proof_dir = 'uploads/deceased_proofs';
+                if (!is_dir($proof_dir)) {
+                    mkdir($proof_dir, 0777, true);
+                }
+
+                $ext = pathinfo($_FILES['deceased_proof']['name'], PATHINFO_EXTENSION);
+                $proof_filename = 'deceased_' . (int)$m_id . '_' . time();
+                if ($ext !== '') {
+                    $proof_filename .= '.' . $ext;
+                }
+                $proof_path = $proof_dir . '/' . $proof_filename;
+
+                if (move_uploaded_file($_FILES['deceased_proof']['tmp_name'], $proof_path)) {
+                    $safe_proof_path = mysqli_real_escape_string($conn, $proof_path);
+                    $proof_update_sql = ", deceased_proof_path = '$safe_proof_path'";
+                } else {
+                    $errors[] = 'Failed to upload deceased proof file.';
+                }
+            } else {
+                $errors[] = 'Failed to upload deceased proof file.';
+            }
+        } elseif ($existing_proof === '') {
+            $errors[] = 'Proof file is required when reason is Deceased.';
+        }
+    }
+
+    if (!empty($errors)) {
+        $_SESSION['toast_error'] = implode("\n", $errors);
+        header("Location: archived.php?household_no=" . rawurlencode($h_no) . "&id=" . rawurlencode($m_id));
+        exit();
+    }
+
+    $update = "UPDATE residents SET is_archived = 1, archive_reason = '$reason', status = '$reason' $proof_update_sql WHERE id = '$m_id'";
     if (mysqli_query($conn, $update)) {
-        echo "<script>alert('Resident archived successfully.'); window.location.href='household_members.php?household_no=$h_no';</script>";
+        header("Location: household_members.php?household_no=" . rawurlencode($h_no) . "&success=resident_archived");
         exit();
     }
 }
@@ -121,6 +184,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirm_archive'])) {
 </head>
 <body>
 
+<?php render_app_toasts($page_toasts); ?>
+
 <div class="sidebar">
     <div style="padding: 25px;"><i class="fa-solid fa-house" style="color:var(--logo-orange); font-size: 30px;"></i></div>
 </div>
@@ -151,14 +216,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirm_archive'])) {
             <a href="household_members.php?household_no=<?php echo $safe_hh_no; ?>" class="close-x">&times;</a>
         </div>
         
-        <form action="archived.php" method="POST">
+        <form action="archived.php" method="POST" enctype="multipart/form-data">
             <div class="card-body">
                 <p class="instruction">
                     Archiving <b><?php echo htmlspecialchars($full_name); ?></b> will update their status and hide this record from active household lists.
                 </p>
 
                 <label>Reason for Archiving *</label>
-                <select name="archive_reason" required>
+                <select name="archive_reason" id="archiveReason" required>
                     <option value="" disabled selected>Select a reason</option>
                     <option value="Transferred to Another Location">Transferred to Another Location</option>
                     <option value="Deceased">Deceased</option>
@@ -166,6 +231,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirm_archive'])) {
                     <option value="Error data entry">Error data entry</option>
                     <option value="Other">Other</option>
                 </select>
+
+                <label>Deceased Proof (Death Certificate or Valid ID, required if Deceased)</label>
+                <input type="file" name="deceased_proof" id="archiveDeceasedProof" style="width:100%; padding:12px; border:1px solid #e2e8f0; border-radius:16px; background:#f8fafc; font-size:1rem; margin-bottom:20px;">
 
                 <div class="notice-box">
                     <i class="fa-solid fa-circle-exclamation"></i>
@@ -187,9 +255,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirm_archive'])) {
     </div>
 </div>
 
+<script>
+    (function() {
+        const reasonSelect = document.getElementById('archiveReason');
+        const proofInput = document.getElementById('archiveDeceasedProof');
+        if (!reasonSelect || !proofInput) return;
+
+        const updateProofRequirement = () => {
+            const isDeceased = reasonSelect.value === 'Deceased';
+            proofInput.required = isDeceased;
+        };
+
+        reasonSelect.addEventListener('change', updateProofRequirement);
+        updateProofRequirement();
+    })();
+</script>
+
 </body>
 </html>
-
 
 
 

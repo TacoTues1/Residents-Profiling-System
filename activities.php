@@ -1,14 +1,16 @@
 <?php 
 include('db.php');
+include_once('toast_helpers.php');
 session_start();
 
-$allowed_roles = ['Captain', 'Admin', 'Secretary'];
+$allowed_roles = ['Captain', 'Barangay Captain', 'Admin', 'Secretary'];
 if(!isset($_SESSION['role']) || !in_array($_SESSION['role'], $allowed_roles)) {
     header("Location: login.php");
     exit();
 }
 
-// Handle Mark Received (AJAX)
+$page_toasts = [];
+
 if (isset($_POST['ajax_mark_received'])) {
     $activity_id = (int)$_POST['activity_id'];
     $resident_id = (int)($_POST['resident_id'] ?? 0);
@@ -51,22 +53,20 @@ if (isset($_POST['ajax_mark_received'])) {
     exit();
 }
 
-// Handle Delete Activity (AJAX)
-if (isset($_POST['ajax_delete_activity'])) {
+
+if (isset($_POST['ajax_archive_activity'])) {
     $activity_id = (int)$_POST['activity_id'];
     if ($activity_id > 0) {
-        // Delete participants first, then the activity
-        mysqli_query($conn, "DELETE FROM activity_participants WHERE activity_id = '$activity_id'");
-        mysqli_query($conn, "DELETE FROM activities WHERE id = '$activity_id'");
+        mysqli_query($conn, "UPDATE activities SET is_archived = 1, archived_at = NOW() WHERE id = '$activity_id'");
         
-        $action_desc = mysqli_real_escape_string($conn, "Deleted activity #$activity_id");
+        $action_desc = mysqli_real_escape_string($conn, "Archived activity #$activity_id");
         mysqli_query($conn, "INSERT INTO logs (action) VALUES ('$action_desc')");
     }
     echo json_encode(['success' => true]);
     exit();
 }
 
-// Handle Fetch Participants (AJAX)
+
 if (isset($_GET['ajax_fetch_participants'])) {
     $activity_id = (int)$_GET['activity_id'];
     $act_query = mysqli_query($conn, "SELECT activity_name FROM activities WHERE id = '$activity_id' LIMIT 1");
@@ -113,10 +113,10 @@ if (isset($_GET['ajax_fetch_participants'])) {
     }
 }
 
-// Fetch Activities with a count of how many residents have already received assistance
+
 $query = "SELECT a.*, 
           (SELECT COUNT(*) FROM activity_participants ap WHERE ap.activity_id = a.id) as beneficiary_count 
-          FROM activities a ORDER BY a.id DESC";
+          FROM activities a WHERE COALESCE(a.is_archived, 0) = 0 ORDER BY a.id DESC";
 $result = mysqli_query($conn, $query);
 
 $user_role = $_SESSION['role'] ?? 'User';
@@ -138,91 +138,79 @@ $user_role = $_SESSION['role'] ?? 'User';
             --logo-orange: #ff9800; 
             --text-gray: #64748b; 
         }
-
         body { font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; background: #f1f5f9; overflow: hidden; }
-        
-        /* --- SIDEBAR --- */
         .sidebar { width: 280px; background: var(--sidebar-navy); color: white; display: flex; flex-direction: column; position: relative; flex-shrink: 0; transition: width 0.3s ease; overflow: hidden; }
         .sidebar.collapsed { width: 80px; }
-        
-        
         .sidebar-header { padding: 15px 15px; display: flex; align-items: center; height: 70px; }
-        
         .brand-group { display: flex; align-items: center;  }
         .brand-logo-container { border: 3px solid var(--logo-orange); border-radius: 14px; width: 55px; height: 55px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .brand-logo-container i { color: var(--logo-orange); font-size: 30px; }
         .brand-text { margin-left: 15px; white-space: nowrap; }
         .brand-text b { display: block; font-size: 20px; color: white; }
         .brand-text span { color: #94a3b8; font-size: 14px; }
-        
         .toggle-icon { cursor: pointer; color: #64748b; font-size: 28px;  margin-left: auto; }
         .sidebar.collapsed .brand-group { display: none; }
         .sidebar.collapsed .sidebar-header { justify-content: center; padding: 25px 0; }
         .sidebar.collapsed .toggle-icon { margin-left: 0; color: white; font-size: 32px; }
-
         .nav-menu { padding: 10px 12px; flex-grow: 1; }
         .nav-item { display: flex; align-items: center; padding: 8px 12px; color: #cbd5e1; text-decoration: none; border-radius: 12px; margin-bottom: 4px; font-weight: 600;  }
-
         .nav-item.active { background: var(--accent-blue); color: white; }
         .nav-item i { font-size: 15px; min-width: 28px; text-align: center; }
         .nav-text { margin-left: 10px; }
         .sidebar.collapsed .nav-text { display: none; }
         .sidebar.collapsed .nav-item { justify-content: center; padding: 18px 0; }
-
-        /* --- MAIN CONTAINER & TOP HEADER --- */
         .main-container { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
-        .top-header { background: #ffffff; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; position: relative; }
-        
         .user-profile-container { position: relative; }
-        .user-pill { display: flex; align-items: center; background: #f8fafc; padding: 8px 15px; border-radius: 50px; border: 1px solid #e2e8f0; cursor: pointer; }
-        .avatar { background: var(--accent-blue); color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-        
-        /* --- LOGOUT DROPDOWN --- */
-        .logout-dropdown { position: absolute; top: 110%; right: 0; background: white; border: 1px solid #e2e8f0; border-radius: 12px; width: 220px;  display: none; z-index: 100; overflow: hidden; }
+        .user-pill { display: flex; align-items: center; background: #f8fafc; padding: 6px 12px; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer; }
+        .avatar { background: var(--accent-blue); color: white; width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+        .logout-dropdown { position: absolute; top: 110%; right: 0; background: white; border: 1px solid #e2e8f0; border-radius: 8px; width: 200px; display: none; z-index: 100; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); }
         .logout-dropdown.show { display: block; }
-        .dropdown-header { padding: 15px; text-align: center; border-bottom: 1px solid #e5e7eb; color: #64748b; font-size: 14px; }
-        .dropdown-header b { display: block; color: #1e293b; margin-top: 4px; font-size: 16px; }
-        .logout-btn { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 20px; color: #ef4444; text-decoration: none; font-weight: 600; font-size: 16px; }
-
-        /* --- PAGE CONTENT --- */
-        .content-body { padding: 16px 20px 20px; }
-        .panel { background: white; border: 1px solid #e5e7eb; padding: 18px; border-radius: 20px; border: 1px solid #e2e8f0;  }
-        
+        .dropdown-header { padding: 12px; text-align: center; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 13px; }
+        .dropdown-header b { display: block; color: #1e293b; margin-top: 2px; font-size: 14px; }
+        .logout-btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; color: #ef4444; text-decoration: none; font-weight: 600; font-size: 14px; }
+        .logout-btn:hover { background: #fef2f2; }
+        .panel { background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th { text-align: left; padding: 18px 15px; border-bottom: 2px solid #e5e7eb; color: var(--text-gray); font-size: 12px; text- letter-spacing: 0.05em; }
-        td { padding: 18px 15px; border-bottom: 1px solid #e5e7eb; font-size: 14px; color: #334155; }
-        
-        .badge { padding: 4px 10px; border-radius: 16px; font-size: 12px; font-weight: 600; background: #f1f5f9; color: var(--text-gray); display: inline-flex; align-items: center; gap: 5px; }
+        th { text-align: left; padding: 14px 12px; border-bottom: 2px solid #e2e8f0; color: var(--text-gray); font-size: 12px; letter-spacing: 0.05em; }
+        td { padding: 14px 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #334155; }
+        .badge { padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: #f1f5f9; color: var(--text-gray); display: inline-flex; align-items: center; gap: 5px; }
         .badge-success { background: #dcfce7; color: #166534; }
-        
-        .btn-add { background: var(--accent-blue); color: white; padding: 12px 24px; border-radius: 12px; text-decoration: none; font-weight: 600;  display: inline-flex; align-items: center; gap: 8px; }
-
-        
+        .btn-add { background: var(--accent-blue); color: white; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
         .action-link { text-decoration: none; font-weight: 600; font-size: 13px; margin-right: 15px; display: inline-flex; align-items: center; gap: 4px; }
         .link-blue { color: var(--accent-blue); }
         .link-green { color: var(--accent-green); }
         .link-red { color: #ef4444; }
-
-        /* --- MODAL --- */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999; align-items: center; justify-content: center; }
-        .modal-content { background: white; border-radius: 20px; width: 600px; max-width: 90%; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        .modal-header { padding: 20px 25px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; }
-        .modal-header h3 { margin: 0; color: #1e293b; font-size: 18px; }
-        .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b; }
-        .modal-body { padding: 25px; overflow-y: auto; flex-grow: 1; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 999; align-items: center; justify-content: center; }
+        .modal-content { background: white; border-radius: 12px; width: 600px; max-width: 90%; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0; }
+        .modal-overlay.show .modal-content { transform: scale(1); }
+        .modal-header { padding: 20px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; }
+        .modal-header h3 { margin: 0; color: #1e293b; font-size: 18px; font-weight: 700; }
+        .modal-close { background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #64748b; }
+        .modal-close:hover { background: #e2e8f0; color: #1e293b; }
+        .modal-body { padding: 24px; overflow-y: auto; flex-grow: 1; }
+        .modal-confirm { width: 450px; }
+        .confirm-icon { width: 56px; height: 56px; background: #fee2e2; color: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; margin: 0 auto 16px; }
+        .confirm-title { text-align: center; font-size: 18px; font-weight: 700; color: #1e293b; margin-bottom: 8px; }
+        .confirm-text { text-align: center; color: #64748b; line-height: 1.5; margin-bottom: 24px; font-size: 14px; }
+        .confirm-actions { display: flex; gap: 12px; justify-content: center; }
+        .btn-cancel { padding: 10px 18px; border-radius: 8px; border: 1px solid #e2e8f0; background: white; color: #64748b; font-weight: 600; cursor: pointer; }
+        .btn-cancel:hover { background: #f8fafc; color: #1e293b; border-color: #cbd5e1; }
+        .btn-delete-confirm { padding: 10px 18px; border-radius: 8px; border: none; background: #ef4444; color: white; font-weight: 600; cursor: pointer; }
+        .btn-delete-confirm:hover { background: #dc2626; }
         .modal-table { width: 100%; border-collapse: collapse; }
-        .modal-table th { text-align: left; padding: 12px; border-bottom: 2px solid #e5e7eb; color: var(--text-gray); font-size: 12px; }
-        .modal-table td { padding: 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
-        .status-badge { background: #e8f5e9; color: #2e7d32; padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+        .modal-table th { text-align: left; padding: 10px; border-bottom: 2px solid #e2e8f0; color: var(--text-gray); font-size: 12px; }
+        .modal-table td { padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+        .status-badge { background: #e8f5e9; color: #2e7d32; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; }
         .pending { background: #fee2e2; color: #991b1b; }
-        .btn-mark { background: var(--accent-blue); color: white; border: none; padding: 8px 15px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 12px; }
-        .btn-mark:hover { background: #1d4ed8; }
+        .btn-mark { background: var(--accent-blue); color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; }
+        .btn-mark:hover { background: var(--accent-blue-hover); }
         .modal-empty { text-align: center; color: var(--text-gray); padding: 16px; font-size: 14px; }
     </style>
 </head>
 <body>
 
 <?php include_once('left_navbar.php'); ?>
+<?php render_app_toasts($page_toasts); ?>
 
 <div class="main-container">
     <header class="top-header">
@@ -295,8 +283,8 @@ $user_role = $_SESSION['role'] ?? 'User';
                                 <a href="edit_activity.php?id=<?php echo $row['id']; ?>" class="action-link link-blue" onclick="event.stopPropagation();">
                                     <i class="fa-solid fa-pen"></i> Edit
                                 </a>
-                                <a href="#" class="action-link link-red" onclick="event.stopPropagation(); deleteActivity(<?php echo $row['id']; ?>, '<?php echo htmlspecialchars(addslashes($row['activity_name'] ?? 'this activity')); ?>');">
-                                    <i class="fa-solid fa-trash"></i> Delete
+                                <a href="#" class="action-link link-red" onclick="event.stopPropagation(); openArchiveModal(<?php echo $row['id']; ?>, '<?php echo htmlspecialchars(addslashes($row['activity_name'] ?? 'this activity')); ?>');">
+                                    <i class="fa-solid fa-check"></i> Mark Done
                                 </a>
                             </td>
                         </tr>
@@ -312,7 +300,6 @@ $user_role = $_SESSION['role'] ?? 'User';
     </div>
 </div>
 
-<!-- Modal -->
 <div class="modal-overlay" id="activityModal">
     <div class="modal-content">
         <div class="modal-header">
@@ -328,21 +315,67 @@ $user_role = $_SESSION['role'] ?? 'User';
     </div>
 </div>
 
+<div class="modal-overlay" id="archiveModal">
+    <div class="modal-content modal-confirm">
+        <div class="modal-body">
+            <div class="confirm-icon">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <div class="confirm-title">Mark Activity as Done?</div>
+            <div class="confirm-text">
+                Are you sure you want to mark <strong id="archiveActivityName" style="color: #1e293b;">this activity</strong> as done?<br>
+                <span style="font-size: 13px; margin-top: 8px; display: block; color: #64748b;">This will move it to Archived Activities.</span>
+            </div>
+            <div class="confirm-actions">
+                <button class="btn-cancel" onclick="closeArchiveModal()">Cancel</button>
+                <button class="btn-delete-confirm" id="confirmArchiveBtn">Yes, Mark Done</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     let currentActivityId = 0;
+    let activityIdToArchive = 0;
 
     function openActivityModal(id, title) {
         currentActivityId = id;
-        document.getElementById('activityModal').style.display = 'flex';
+        const modal = document.getElementById('activityModal');
+        modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('show'), 10);
         document.getElementById('modalActivityTitle').textContent = 'Tracking for: ' + title;
         fetchParticipants(id);
     }
 
     function closeActivityModal() {
-        document.getElementById('activityModal').style.display = 'none';
-        currentActivityId = 0;
-        // Optionally refresh the page to update counts if changes were made
-        location.reload();
+        const modal = document.getElementById('activityModal');
+        modal.classList.remove('show');
+        setTimeout(() => {
+            modal.style.display = 'none';
+            currentActivityId = 0;
+            location.reload();
+        }, 200);
+    }
+
+    function openArchiveModal(id, name) {
+        activityIdToArchive = id;
+        document.getElementById('archiveActivityName').textContent = '"' + name + '"';
+        const modal = document.getElementById('archiveModal');
+        modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('show'), 10);
+        
+        document.getElementById('confirmArchiveBtn').onclick = function() {
+            confirmArchiveActivity(id);
+        };
+    }
+
+    function closeArchiveModal() {
+        const modal = document.getElementById('archiveModal');
+        modal.classList.remove('show');
+        setTimeout(() => {
+            modal.style.display = 'none';
+            activityIdToArchive = 0;
+        }, 200);
     }
 
     function fetchParticipants(id) {
@@ -449,38 +482,9 @@ $user_role = $_SESSION['role'] ?? 'User';
         })
         .catch(err => console.error(err));
     }
-
-    // SIDEBAR TOGGLE (Consistent with settings.php)
-    function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const icon = document.getElementById('toggleBtn');
-        sidebar.classList.toggle('collapsed');
-        document.body.classList.toggle('sidebar-is-collapsed');
-        
-        if (sidebar.classList.contains('collapsed')) {
-            localStorage.setItem('sidebar-collapsed', 'true');
-            icon.classList.replace('fa-xmark', 'fa-bars');
-        } else {
-            localStorage.setItem('sidebar-collapsed', 'false');
-            icon.classList.replace('fa-bars', 'fa-xmark');
-        }
-    }
-
-    // Initialize sidebar state on page load
-    document.addEventListener("DOMContentLoaded", function() {
-        if (localStorage.getItem('sidebar-collapsed') === 'true') {
-            document.body.classList.add('sidebar-is-collapsed');
-            document.getElementById('sidebar').classList.add('collapsed');
-            document.getElementById('toggleBtn').classList.replace('fa-xmark', 'fa-bars');
-        }
-    });
-
-    // LOGOUT DROPDOWN
     function toggleLogout() {
         document.getElementById('logoutDropdown').classList.toggle('show');
     }
-
-    // Close dropdown when clicking outside
     window.onclick = function(event) {
         if (!event.target.closest('.user-profile-container')) {
             const dropdown = document.getElementById('logoutDropdown');
@@ -489,14 +493,14 @@ $user_role = $_SESSION['role'] ?? 'User';
             }
         }
     }
-
-    function deleteActivity(activityId, activityName) {
-        if (!confirm('Are you sure you want to delete "' + activityName + '"? This will also remove all its beneficiaries. This action cannot be undone.')) {
-            return;
-        }
+    function confirmArchiveActivity(activityId) {
+        const btn = document.getElementById('confirmArchiveBtn');
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Marking...';
 
         const formData = new FormData();
-        formData.append('ajax_delete_activity', '1');
+        formData.append('ajax_archive_activity', '1');
         formData.append('activity_id', activityId);
 
         fetch('activities.php', {
@@ -507,15 +511,22 @@ $user_role = $_SESSION['role'] ?? 'User';
         .then(data => {
             if (data.success) {
                 location.reload();
+            } else {
+                showAppToast('Error archiving activity.', 'error', 'Action Needed');
+                btn.disabled = false;
+                btn.textContent = originalText;
             }
         })
-        .catch(err => console.error(err));
+        .catch(err => {
+            console.error(err);
+            showAppToast('Error archiving activity.', 'error', 'Action Needed');
+            btn.disabled = false;
+            btn.textContent = originalText;
+        });
     }
 </script>
 </body>
 </html>
-
-
 
 
 

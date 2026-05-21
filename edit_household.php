@@ -1,5 +1,6 @@
 <?php
 include('db.php');
+include_once('toast_helpers.php');
 session_start();
 
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Secretary') {
@@ -15,11 +16,12 @@ $result = mysqli_query($conn, $query);
 $household = $result ? mysqli_fetch_assoc($result) : null;
 
 if (!$household) {
-    echo "<script>alert('Household not found.'); window.location.href='residents.php';</script>";
+    header("Location: residents.php?error=household_not_found");
     exit();
 }
 
 $errors = [];
+$today = date('Y-m-d');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $new_household_no = trim($_POST['household_no'] ?? '');
@@ -35,6 +37,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($new_household_no === '') $errors[] = 'Household number is required.';
     if ($survey_date === '') $errors[] = 'Survey date is required.';
+    if ($survey_date !== '' && strtotime($survey_date) > strtotime($today)) {
+        $errors[] = 'Survey date cannot be in the future.';
+    }
     if ($address === '') $errors[] = 'Address is required.';
     if ($purok === '') $errors[] = 'Purok is required.';
 
@@ -100,13 +105,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             mysqli_query($conn, "INSERT INTO logs (action) VALUES ('$action_desc')");
 
             $conn->commit();
-            header("Location: household_members.php?household_no=" . urlencode($new_household_no));
+            header("Location: household_members.php?household_no=" . urlencode($new_household_no) . "&success=household_updated");
             exit();
         } catch (Exception $e) {
             $conn->rollback();
             $errors[] = 'Failed to update household. Please try again.';
         }
     }
+}
+
+$page_toasts = [];
+if (!empty($errors)) {
+    $page_toasts[] = app_toast_from_message(implode("\n", $errors));
 }
 ?>
 
@@ -119,27 +129,293 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root { --accent-blue: #2563eb; --text-gray: #64748b; --border: #e2e8f0; }
-        body { font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; background: #f1f5f9; overflow: hidden; }
-        .main-container { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
-        .top-header { background: white; padding: 20px 40px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .content-body { padding: 16px 20px 20px; }
-        .panel { background: white; border: 1px solid var(--border); padding: 30px; border-radius: 20px; max-width: 960px; }
-        .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-        .form-group { display: flex; flex-direction: column; gap: 8px; }
-        label { font-size: 13px; font-weight: 700; color: #334155; }
-        input, select { padding: 12px; border: 1px solid #d1d5db; border-radius: 10px; font-family: inherit; font-size: 14px; }
-        input:focus, select:focus { outline: none; border-color: var(--accent-blue); }
-        .error-box { background: #fee2e2; color: #991b1b; padding: 12px 16px; border-radius: 12px; margin-bottom: 20px; }
-        .footer { display: flex; justify-content: flex-end; gap: 12px; margin-top: 28px; padding-top: 20px; border-top: 1px solid #f1f5f9; }
-        .btn { padding: 12px 22px; border-radius: 12px; font-weight: 700; border: none; text-decoration: none; cursor: pointer; font-family: inherit; }
-        .btn-cancel { background: #f1f5f9; color: #1e293b; }
-        .btn-save { background: var(--accent-blue); color: white; }
+        :root {
+            --accent-blue: #2563eb;
+            --text-gray: #64748b;
+            --hero-bg: #1e293b;
+            --card-bg: #ffffff;
+            --border-color: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            background: #f1f5f9;
+            overflow: hidden;
+        }
+
+        /* Main Container Layout */
+        .main-container {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            background: #f1f5f9;
+        }
+
+        /* Panel Design */
+        .panel {
+            background: var(--card-bg);
+            padding: 32px;
+            border-radius: 24px;
+            box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.05);
+            border: 1px solid var(--border-color);
+            max-width: 960px;
+            box-sizing: border-box;
+        }
+
+        /* Form Styles */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        .choice-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 8px;
+        }
+
+        .choice-chip {
+            position: relative;
+            display: block;
+            cursor: pointer;
+            min-width: 0;
+        }
+
+        .choice-chip input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .choice-chip span {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 42px;
+            padding: 10px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.25;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        .choice-chip:hover span {
+            border-color: var(--accent-blue);
+            background: #f8fafc;
+        }
+
+        .choice-chip input:focus-visible + span {
+            outline: 2px solid rgba(37, 99, 235, 0.25);
+            outline-offset: 2px;
+        }
+
+        .choice-chip input:checked + span {
+            border-color: var(--accent-blue);
+            background: rgba(130, 78, 57, 0.1);
+            color: var(--accent-blue);
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            box-sizing: border-box;
+            font-family: inherit;
+            font-size: 14px;
+            background: #ffffff;
+            color: #0f172a;
+        }
+
+        .form-group .choice-chip input {
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .form-group input::placeholder {
+            color: #94a3b8;
+        }
+
+        .error-box {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 28px;
+            padding-top: 20px;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 700;
+            border: none;
+            text-decoration: none;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-cancel {
+            background: #f1f5f9;
+            color: #1e293b;
+        }
+
+        .btn-save {
+            background: var(--accent-blue);
+            color: white;
+        }
+
+        .btn-save:disabled {
+            opacity: 0.75;
+            cursor: wait;
+        }
+
+        .btn-save i {
+            margin-right: 8px;
+        }
+
+        /* Dark Mode Support overrides */
+        body.dark-mode {
+            background: #0f172a;
+        }
+
+        body.dark-mode .main-container {
+            background: #0f172a;
+        }
+
+        body.dark-mode .panel {
+            background: #1e293b;
+            border-color: #334155;
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        body.dark-mode .form-group label {
+            color: #cbd5e1;
+        }
+
+        body.dark-mode .form-group input,
+        body.dark-mode .form-group select {
+            background: #0f172a;
+            border-color: #334155;
+            color: white;
+        }
+
+        body.dark-mode .choice-chip span {
+            background: #0f172a;
+            border-color: #334155;
+            color: #e2e8f0;
+        }
+
+        body.dark-mode .choice-chip:hover span {
+            border-color: #64748b;
+            background: #172033;
+        }
+
+        body.dark-mode .choice-chip input:checked + span {
+            background: rgba(130, 78, 57, 0.28);
+            border-color: var(--accent-blue);
+            color: #f8fafc;
+        }
+
+        body.dark-mode .form-group .choice-chip input {
+            background: transparent;
+            border-color: transparent;
+        }
+
+        body.dark-mode .form-group input::placeholder {
+            color: #475569;
+        }
+
+        body.dark-mode .footer {
+            border-top-color: #334155;
+        }
+
+        body.dark-mode .btn-cancel {
+            background: #334155;
+            color: white;
+        }
+
+        body.dark-mode .btn-cancel:hover {
+            background: #475569;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                height: auto;
+                overflow: auto;
+            }
+            .main-container {
+                height: auto;
+                overflow: visible;
+            }
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            .panel {
+                padding: 20px;
+                border-radius: 16px;
+            }
+        }
     </style>
 </head>
 <body>
+<script>
+    if (localStorage.getItem('theme') === 'dark') {
+        document.body.classList.add('dark-mode');
+    }
+</script>
 
 <?php include_once('left_navbar.php'); ?>
+<?php render_app_toasts($page_toasts); ?>
 
 <div class="main-container">
     <header class="top-header">
@@ -159,7 +435,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             <?php endif; ?>
 
-            <form method="POST">
+            <form id="edit-household-form" method="POST">
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Household No.</label>
@@ -167,7 +443,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                     <div class="form-group">
                         <label>Date of Survey</label>
-                        <input type="date" name="survey_date" value="<?php echo htmlspecialchars($_POST['survey_date'] ?? $household['survey_date']); ?>" required>
+                        <input type="date" name="survey_date" max="<?php echo $today; ?>" value="<?php echo htmlspecialchars($_POST['survey_date'] ?? $household['survey_date']); ?>" required>
                     </div>
                     <div class="form-group">
                         <label>Complete Address</label>
@@ -185,53 +461,74 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="form-group">
                         <label>House</label>
                         <?php $house_value = $_POST['house'] ?? $household['house']; ?>
-                        <select name="house">
-                            <option value="Owned" <?php echo $house_value === 'Owned' ? 'selected' : ''; ?>>Owned</option>
-                            <option value="Rented" <?php echo $house_value === 'Rented' ? 'selected' : ''; ?>>Rented</option>
-                        </select>
+                        <div class="choice-group">
+                            <?php foreach (['Owned', 'Rented'] as $option): ?>
+                                <label class="choice-chip">
+                                    <input type="radio" name="house" value="<?php echo htmlspecialchars($option); ?>" <?php echo $house_value === $option ? 'checked' : ''; ?> required>
+                                    <span><?php echo htmlspecialchars($option); ?></span>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Electricity</label>
                         <?php $electricity_value = $_POST['electricity'] ?? $household['electricity']; ?>
-                        <select name="electricity">
-                            <option value="Yes" <?php echo $electricity_value === 'Yes' ? 'selected' : ''; ?>>Yes</option>
-                            <option value="No" <?php echo $electricity_value === 'No' ? 'selected' : ''; ?>>No</option>
-                        </select>
+                        <div class="choice-group">
+                            <?php foreach (['Yes', 'No'] as $option): ?>
+                                <label class="choice-chip">
+                                    <input type="radio" name="electricity" value="<?php echo htmlspecialchars($option); ?>" <?php echo $electricity_value === $option ? 'checked' : ''; ?> required>
+                                    <span><?php echo htmlspecialchars($option); ?></span>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Type of House</label>
                         <?php $house_type_value = $_POST['house_type'] ?? $household['house_type']; ?>
-                        <select name="house_type">
+                        <div class="choice-group">
                             <?php foreach (['Concrete', 'Semi-concrete', 'Light Materials'] as $option): ?>
-                                <option value="<?php echo htmlspecialchars($option); ?>" <?php echo $house_type_value === $option ? 'selected' : ''; ?>><?php echo htmlspecialchars($option); ?></option>
+                                <label class="choice-chip">
+                                    <input type="radio" name="house_type" value="<?php echo htmlspecialchars($option); ?>" <?php echo $house_type_value === $option ? 'checked' : ''; ?> required>
+                                    <span><?php echo htmlspecialchars($option); ?></span>
+                                </label>
                             <?php endforeach; ?>
-                        </select>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Toilet</label>
                         <?php $toilet_value = $_POST['toilet'] ?? $household['toilet']; ?>
-                        <select name="toilet">
+                        <div class="choice-group">
                             <?php foreach (['Flushed', 'Non-flushed', 'No'] as $option): ?>
-                                <option value="<?php echo htmlspecialchars($option); ?>" <?php echo $toilet_value === $option ? 'selected' : ''; ?>><?php echo htmlspecialchars($option); ?></option>
+                                <label class="choice-chip">
+                                    <input type="radio" name="toilet" value="<?php echo htmlspecialchars($option); ?>" <?php echo $toilet_value === $option ? 'checked' : ''; ?> required>
+                                    <span><?php echo htmlspecialchars($option); ?></span>
+                                </label>
                             <?php endforeach; ?>
-                        </select>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Vulnerability</label>
                         <?php $vulnerability_value = $_POST['vulnerability'] ?? $household['vulnerability']; ?>
-                        <select name="vulnerability">
+                        <div class="choice-group">
                             <?php foreach (['Flood', 'Storm Surge', 'Fire'] as $option): ?>
-                                <option value="<?php echo htmlspecialchars($option); ?>" <?php echo $vulnerability_value === $option ? 'selected' : ''; ?>><?php echo htmlspecialchars($option); ?></option>
+                                <label class="choice-chip">
+                                    <input type="radio" name="vulnerability" value="<?php echo htmlspecialchars($option); ?>" <?php echo $vulnerability_value === $option ? 'checked' : ''; ?> required>
+                                    <span><?php echo htmlspecialchars($option); ?></span>
+                                </label>
                             <?php endforeach; ?>
-                        </select>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Water Source</label>
                         <?php $water_value = $_POST['water'] ?? $household['water']; ?>
-                        <select name="water">
-                            <option value="Metro Dumaguete City Water District" <?php echo $water_value === 'Metro Dumaguete City Water District' ? 'selected' : ''; ?>>Metro Dumaguete City Water District</option>
-                            <option value="Deep Well" <?php echo $water_value === 'Deep Well' ? 'selected' : ''; ?>>Deep Well</option>
-                        </select>
+                        <div class="choice-group">
+                            <?php foreach (['Metro Dumaguete City Water District', 'Deep Well'] as $option): ?>
+                                <label class="choice-chip">
+                                    <input type="radio" name="water" value="<?php echo htmlspecialchars($option); ?>" <?php echo $water_value === $option ? 'checked' : ''; ?> required>
+                                    <span><?php echo htmlspecialchars($option); ?></span>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
                     </div>
                 </div>
 
@@ -244,5 +541,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 </div>
 
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('edit-household-form');
+        if (!form) return;
+
+        form.addEventListener('submit', function() {
+            if (!form.checkValidity()) return;
+
+            const submitButton = form.querySelector('button[type="submit"]');
+            if (window.showAppToast) {
+                window.showAppToast({
+                    type: 'info',
+                    title: 'Updating Household',
+                    message: 'Changes are being saved. Please wait.'
+                });
+            }
+
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>Saving...';
+            }
+        });
+    });
+</script>
+<?php render_form_draft_script('#edit-household-form', 'edit-household-' . $household['id']); ?>
 </body>
 </html>

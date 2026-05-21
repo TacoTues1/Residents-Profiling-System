@@ -1,5 +1,7 @@
 <?php
 include('db.php');
+include_once('user_archive_helpers.php');
+include_once('toast_helpers.php');
 session_start();
 
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Barangay Captain') {
@@ -9,6 +11,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Barangay Captain') {
 
 $errors = [];
 $success = '';
+$archive_columns_ready = ensure_user_archive_columns($conn);
 
 $edit_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 if ($edit_id <= 0) {
@@ -16,27 +19,41 @@ if ($edit_id <= 0) {
     exit();
 }
 
-$query = mysqli_query($conn, "SELECT * FROM users WHERE id = '$edit_id'");
+$active_user_where = $archive_columns_ready ? "AND COALESCE(is_archived, 0) = 0" : "";
+$query = mysqli_query($conn, "SELECT * FROM users WHERE id = '$edit_id' $active_user_where");
 $u = mysqli_fetch_assoc($query);
 
 if (!$u) {
-    echo "<script>alert('User not found.'); window.location.href='manage_users.php';</script>";
+    header("Location: manage_users.php?error=user_not_found");
     exit();
 }
 
+$captain_exists_elsewhere = active_captain_exists($conn, $edit_id);
+
 // Handle Update User
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_user'])) {
-    $full_name = trim($_POST['full_name'] ?? '');
+    $first_name = trim($_POST['first_name'] ?? '');
+    $middle_name = trim($_POST['middle_name'] ?? '');
+    $last_name = trim($_POST['last_name'] ?? '');
+    $full_name = trim("$first_name $middle_name $last_name");
     $role = $_POST['role'] ?? '';
     $username = trim($_POST['username'] ?? '');
+    $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
     $confirm_password = $_POST['confirm_password'] ?? '';
 
-    $allowed_roles = ['Secretary', 'Barangay Captain'];
+    $allowed_roles = ['Secretary', 'Barangay Captain', 'Former Captain'];
+    $email_col_exists = false;
+    $col_check = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'email'");
+    if ($col_check && mysqli_num_rows($col_check) > 0) {
+        $email_col_exists = true;
+    }
 
-    if ($full_name === '') $errors[] = 'Full name is required.';
+    if ($first_name === '' || $last_name === '') $errors[] = 'First and Last names are required.';
     if (!in_array($role, $allowed_roles, true)) $errors[] = 'Invalid role selected.';
+    if ($role === 'Barangay Captain' && active_captain_exists($conn, $edit_id)) $errors[] = 'There is already an active Barangay Captain account.';
     if ($username === '') $errors[] = 'Username is required.';
+    if ($email_col_exists && $email === '') $errors[] = 'Email is required.';
 
     if ($password !== '') {
         if (strlen($password) < 4) $errors[] = 'Password must be at least 4 characters.';
@@ -49,32 +66,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_user'])) {
         if ($check && mysqli_num_rows($check) > 0) {
             $errors[] = 'Username is already taken by another account.';
         } else {
-            $safe_name = mysqli_real_escape_string($conn, $full_name);
-            $safe_role = mysqli_real_escape_string($conn, $role);
-
-            if ($password !== '') {
-                $hashed = password_hash($password, PASSWORD_DEFAULT);
-                $update = "UPDATE users SET full_name = '$safe_name', role = '$safe_role', username = '$safe_user', password = '$hashed' WHERE id = '$edit_id'";
-            } else {
-                $update = "UPDATE users SET full_name = '$safe_name', role = '$safe_role', username = '$safe_user' WHERE id = '$edit_id'";
-            }
-
-            if (mysqli_query($conn, $update)) {
-                $action_desc = mysqli_real_escape_string($conn, "Captain updated user details for ID#$edit_id ($full_name)");
-                mysqli_query($conn, "INSERT INTO logs (action) VALUES ('$action_desc')");
-                
-                // If updating own account in session
-                if ($edit_id === (int)($_SESSION['user_id'] ?? 0)) {
-                    $_SESSION['username'] = $username;
-                    $_SESSION['role'] = $role;
-                    $_SESSION['full_name'] = $full_name;
+            if ($email_col_exists && $email !== '') {
+                $safe_email_check = mysqli_real_escape_string($conn, strtolower($email));
+                $email_check = mysqli_query(
+                    $conn,
+                    "SELECT id FROM users WHERE LOWER(email) = '$safe_email_check' AND id != '$edit_id' LIMIT 1"
+                );
+                if ($email_check && mysqli_num_rows($email_check) > 0) {
+                    $errors[] = 'Email is already used by another account.';
                 }
-
-                echo "<script>alert('User details updated successfully!'); window.location.href='manage_users.php';</script>";
-                exit();
-            } else {
-                $errors[] = 'Failed to update user. Please try again.';
             }
+        }
+    }
+
+    if (empty($errors)) {
+        $safe_name = mysqli_real_escape_string($conn, $full_name);
+        $safe_role = mysqli_real_escape_string($conn, $role);
+        $safe_email = mysqli_real_escape_string($conn, $email);
+
+        $safe_first = mysqli_real_escape_string($conn, $first_name);
+        $safe_middle = mysqli_real_escape_string($conn, $middle_name);
+        $safe_last = mysqli_real_escape_string($conn, $last_name);
+
+        if ($password !== '') {
+            $hashed = password_hash($password, PASSWORD_DEFAULT);
+            if ($email_col_exists) {
+                $update = "UPDATE users SET first_name = '$safe_first', middle_name = '$safe_middle', last_name = '$safe_last', role = '$safe_role', username = '$safe_user', email = '$safe_email', password = '$hashed' WHERE id = '$edit_id'";
+            } else {
+                $update = "UPDATE users SET first_name = '$safe_first', middle_name = '$safe_middle', last_name = '$safe_last', role = '$safe_role', username = '$safe_user', password = '$hashed' WHERE id = '$edit_id'";
+            }
+        } else {
+            if ($email_col_exists) {
+                $update = "UPDATE users SET first_name = '$safe_first', middle_name = '$safe_middle', last_name = '$safe_last', role = '$safe_role', username = '$safe_user', email = '$safe_email' WHERE id = '$edit_id'";
+            } else {
+                $update = "UPDATE users SET first_name = '$safe_first', middle_name = '$safe_middle', last_name = '$safe_last', role = '$safe_role', username = '$safe_user' WHERE id = '$edit_id'";
+            }
+        }
+
+        if (mysqli_query($conn, $update)) {
+            $action_desc = mysqli_real_escape_string($conn, "Captain updated user details for ID#$edit_id ($full_name)");
+            mysqli_query($conn, "INSERT INTO logs (action) VALUES ('$action_desc')");
+            
+            // If updating own account in session
+            if ($edit_id === (int)($_SESSION['user_id'] ?? 0)) {
+                $_SESSION['username'] = $username;
+                $_SESSION['role'] = $role;
+                $_SESSION['full_name'] = $full_name;
+            }
+
+            header("Location: manage_users.php?success=user_updated");
+            exit();
+        } else {
+            $errors[] = 'Failed to update user. Please try again.';
         }
     }
 }
@@ -104,8 +147,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_user'])) {
         .form-group.full-width { grid-column: span 2; }
         label { font-weight: 600; color: #1e293b; font-size: 13px; }
         input, select {
-            padding: 12px 16px; border: 1px solid #e2e8f0; border-radius: 10px;
-            font-family: inherit; font-size: 14px; outline: none; background: #f8fafc;
+            padding: 12px 16px; border: 1px solid #d7dbe1; border-radius: 8px;
+            font-family: inherit; font-size: 14px; outline: none; background: #fff;
         }
         input:focus, select:focus { border-color: var(--accent-blue); background: white; }
 
@@ -114,14 +157,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_user'])) {
             border-radius: 12px; font-weight: 600; cursor: pointer; font-size: 14px;
             display: inline-flex; align-items: center; gap: 8px;
         }
-        .btn-save:hover { background: #1d4ed8; }
 
         .btn-cancel {
             background: #e2e8f0; color: #334155; padding: 12px 28px; border: none;
             border-radius: 12px; font-weight: 600; cursor: pointer; font-size: 14px; text-decoration: none;
             display: inline-flex; align-items: center; gap: 8px; margin-right: 12px;
         }
-        .btn-cancel:hover { background: #cbd5e1; }
 
         .error-box { background: #fee2e2; color: #991b1b; padding: 12px 16px; border-radius: 12px; margin-bottom: 16px; font-size: 14px; }
 
@@ -163,22 +204,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_user'])) {
             <div class="panel-header">
                 <h3><i class="fa-solid fa-user-pen" style="color: var(--accent-blue); margin-right: 8px;"></i>Account Details</h3>
             </div>
-            <form method="POST">
+            <form id="edit-user-form" method="POST">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>Full Name</label>
-                        <input type="text" name="full_name" value="<?php echo htmlspecialchars($_POST['full_name'] ?? $u['full_name']); ?>" required>
+                        <label>First Name</label>
+                        <input type="text" name="first_name" value="<?php echo htmlspecialchars($_POST['first_name'] ?? $u['first_name'] ?? ''); ?>" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Middle Name</label>
+                        <input type="text" name="middle_name" value="<?php echo htmlspecialchars($_POST['middle_name'] ?? $u['middle_name'] ?? ''); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label>Last Name</label>
+                        <input type="text" name="last_name" value="<?php echo htmlspecialchars($_POST['last_name'] ?? $u['last_name'] ?? ''); ?>" required>
                     </div>
                     <div class="form-group">
                         <label>Role</label>
+                        <?php $selected_role = $_POST['role'] ?? ($u['role'] ?? ''); ?>
                         <select name="role" required>
-                            <option value="Secretary" <?php echo (($u['role'] ?? '') === 'Secretary') ? 'selected' : ''; ?>>Secretary</option>
-                            <option value="Barangay Captain" <?php echo (($u['role'] ?? '') === 'Barangay Captain') ? 'selected' : ''; ?>>Barangay Captain</option>
+                            <option value="Secretary" <?php echo ($selected_role === 'Secretary') ? 'selected' : ''; ?>>Secretary</option>
+                            <?php if (!$captain_exists_elsewhere || in_array(($u['role'] ?? ''), ['Barangay Captain', 'Captain'], true)): ?>
+                                <option value="Barangay Captain" <?php echo in_array($selected_role, ['Barangay Captain', 'Captain'], true) ? 'selected' : ''; ?>>Barangay Captain</option>
+                            <?php endif; ?>
+                            <option value="Former Captain" <?php echo ($selected_role === 'Former Captain') ? 'selected' : ''; ?>>Former Captain</option>
                         </select>
+                        <?php if ($captain_exists_elsewhere && !in_array(($u['role'] ?? ''), ['Barangay Captain', 'Captain'], true)): ?>
+                            <div class="help-text">Only one Barangay Captain account can be active.</div>
+                        <?php endif; ?>
                     </div>
-                    <div class="form-group full-width">
+                    <div class="form-group">
                         <label>Username</label>
                         <input type="text" name="username" value="<?php echo htmlspecialchars($_POST['username'] ?? $u['username']); ?>" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="email" name="email" value="<?php echo htmlspecialchars($_POST['email'] ?? ($u['email'] ?? '')); ?>" required>
                     </div>
                     <div class="form-group full-width" style="border-top: 1px solid #e2e8f0; padding-top: 16px; margin-top: 8px;">
                         <label>Change Password <span style="font-weight: normal; color: var(--text-gray);">(Leave blank to keep current password)</span></label>
@@ -220,5 +280,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_user'])) {
         }
     }
 </script>
+<?php render_form_draft_script('#edit-user-form', 'edit-user-' . $edit_id); ?>
 </body>
 </html>

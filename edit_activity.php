@@ -1,9 +1,9 @@
 <?php
 include('db.php');
+include_once('toast_helpers.php');
 session_start();
 
-// Restriction: Only Secretary, Admin, or Captain
-$allowed_roles = ['Captain', 'Admin', 'Secretary'];
+$allowed_roles = ['Captain', 'Barangay Captain', 'Admin', 'Secretary'];
 if (!isset($_SESSION['role']) || !in_array($_SESSION['role'], $allowed_roles, true)) {
     header("Location: login.php");
     exit();
@@ -36,22 +36,17 @@ $activity_description = $activity['description'] ?? '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['remove_participant'])) {
     $activity_title = trim($_POST['activity_title'] ?? '');
-    $activity_date = $_POST['activity_date'] ?? '';
     $activity_description = trim($_POST['activity_description'] ?? '');
 
     if ($activity_title === '') {
         $errors[] = 'Activity title is required.';
     }
-    if ($activity_date === '') {
-        $errors[] = 'Activity date is required.';
-    }
 
     if (empty($errors)) {
         $safe_title = mysqli_real_escape_string($conn, $activity_title);
-        $safe_date = mysqli_real_escape_string($conn, $activity_date);
         $safe_desc = mysqli_real_escape_string($conn, $activity_description);
 
-        $update_sql = "UPDATE activities SET activity_name = '$safe_title', activity_date = '$safe_date', description = '$safe_desc' WHERE id = '$activity_id'";
+        $update_sql = "UPDATE activities SET activity_name = '$safe_title', description = '$safe_desc' WHERE id = '$activity_id'";
         if (mysqli_query($conn, $update_sql)) {
             // Process new beneficiaries if selected
             $new_selected_res = $_POST['new_beneficiaries'] ?? [];
@@ -170,6 +165,11 @@ if ($is_4ps_act_edit) {
 
 $non_participants = mysqli_query($conn, "SELECT r.id, r.last_name, r.first_name, r.middle_name, r.household_no, r.is_4ps FROM residents r LEFT JOIN activity_participants ap ON r.id = ap.resident_id AND ap.activity_id = '$activity_id' WHERE COALESCE(r.is_archived, 0) = 0 AND ap.resident_id IS NULL ORDER BY r.last_name ASC, r.first_name ASC");
 $non_participant_hh_query = mysqli_query($conn, "SELECT r.household_no, GROUP_CONCAT(CONCAT(r.last_name, ', ', r.first_name) SEPARATOR '; ') as members FROM residents r LEFT JOIN activity_participants ap ON r.id = ap.resident_id AND ap.activity_id = '$activity_id' WHERE COALESCE(r.is_archived, 0) = 0 AND ap.resident_id IS NULL GROUP BY r.household_no ORDER BY r.household_no ASC");
+
+$page_toasts = [];
+if ($success !== '') {
+    $page_toasts[] = app_toast_from_message($success, 'success', 'Success');
+}
 ?>
 
 <!DOCTYPE html>
@@ -240,7 +240,6 @@ $non_participant_hh_query = mysqli_query($conn, "SELECT r.household_no, GROUP_CO
         .status-received { background: #dcfce7; color: #166534; }
 
         .error-box { background: #fee2e2; color: #991b1b; padding: 12px 16px; border-radius: 12px; margin-bottom: 20px; }
-        .success-box { background: #dcfce7; color: #166534; padding: 12px 16px; border-radius: 12px; margin-bottom: 20px; }
 
         .user-profile-container { position: relative; }
         .user-pill { display: flex; align-items: center; background: #f8fafc; padding: 8px 15px; border-radius: 50px; border: 1px solid #e2e8f0; cursor: pointer; }
@@ -255,6 +254,7 @@ $non_participant_hh_query = mysqli_query($conn, "SELECT r.household_no, GROUP_CO
 <body>
 
 <?php include_once('left_navbar.php'); ?>
+<?php render_app_toasts($page_toasts); ?>
 
 <div class="main-container">
     <header class="top-header">
@@ -292,10 +292,6 @@ $non_participant_hh_query = mysqli_query($conn, "SELECT r.household_no, GROUP_CO
                 </div>
             <?php endif; ?>
 
-            <?php if ($success !== ''): ?>
-                <div class="success-box"><?php echo htmlspecialchars($success); ?></div>
-            <?php endif; ?>
-
             <form method="POST">
                 <div class="form-grid">
                     <div class="form-group">
@@ -306,8 +302,8 @@ $non_participant_hh_query = mysqli_query($conn, "SELECT r.household_no, GROUP_CO
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Activity Date</label>
-                        <input type="date" name="activity_date" min="<?php echo date('Y-m-d'); ?>" value="<?php echo htmlspecialchars($activity_date); ?>" required>
+                        <label>Activity</label>
+                        <input type="date" name="activity_date" value="<?php echo htmlspecialchars($activity_date); ?>" readonly disabled>
                     </div>
                 </div>
 
@@ -475,28 +471,7 @@ $non_participant_hh_query = mysqli_query($conn, "SELECT r.household_no, GROUP_CO
 </div>
 
 <script>
-    function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const icon = document.getElementById('toggleBtn');
-        sidebar.classList.toggle('collapsed');
-        document.body.classList.toggle('sidebar-is-collapsed');
-
-        if (sidebar.classList.contains('collapsed')) {
-            localStorage.setItem('sidebar-collapsed', 'true');
-            icon.classList.replace('fa-xmark', 'fa-bars');
-        } else {
-            localStorage.setItem('sidebar-collapsed', 'false');
-            icon.classList.replace('fa-bars', 'fa-xmark');
-        }
-    }
-
     document.addEventListener("DOMContentLoaded", function() {
-        if (localStorage.getItem('sidebar-collapsed') === 'true') {
-            document.body.classList.add('sidebar-is-collapsed');
-            document.getElementById('sidebar').classList.add('collapsed');
-            document.getElementById('toggleBtn').classList.replace('fa-xmark', 'fa-bars');
-        }
-
         setupActivityTitleSuggestions();
         setupBeneficiarySearch();
         setupSelectAll();

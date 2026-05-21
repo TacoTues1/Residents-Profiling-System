@@ -2,13 +2,11 @@
 include('db.php');
 session_start();
 
-// Security check
 if(!isset($_SESSION['role']) || $_SESSION['role'] !== 'Secretary') {
     header("Location: login.php");
     exit();
 }
 
-// 1. Get the household number from the URL
 $household_no = $_GET['household_no'] ?? '';
 
 if (empty($household_no)) {
@@ -16,18 +14,15 @@ if (empty($household_no)) {
     exit();
 }
 
-// 2. Fetch Household Info
 $query_h = "SELECT * FROM households WHERE household_no = '" . mysqli_real_escape_string($conn, $household_no) . "'";
 $result_h = mysqli_query($conn, $query_h);
 $household = mysqli_fetch_assoc($result_h);
 
-// Check if household exists
 if (!$household) {
     echo "Household record not found.";
     exit();
 }
 
-// 3. Fetch Members of this Household
 $query_m = "SELECT * FROM residents WHERE household_no = '" . mysqli_real_escape_string($conn, $household_no) . "' AND COALESCE(is_archived, 0) = 0";
 $result_m = mysqli_query($conn, $query_m);
 ?>

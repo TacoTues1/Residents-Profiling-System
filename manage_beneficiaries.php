@@ -2,8 +2,7 @@
 include('db.php');
 session_start();
 
-// Restriction: Only Secretary, Admin, or Captain
-$allowed_roles = ['Captain', 'Admin', 'Secretary'];
+$allowed_roles = ['Captain', 'Barangay Captain', 'Admin', 'Secretary'];
 if (!isset($_SESSION['role']) || !in_array($_SESSION['role'], $allowed_roles, true)) {
     header("Location: login.php");
     exit();
@@ -277,28 +276,7 @@ if ($is_4ps_act) {
 </div>
 
 <script>
-    function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const icon = document.getElementById('toggleBtn');
-        sidebar.classList.toggle('collapsed');
-        document.body.classList.toggle('sidebar-is-collapsed');
 
-        if (sidebar.classList.contains('collapsed')) {
-            localStorage.setItem('sidebar-collapsed', 'true');
-            icon.classList.replace('fa-xmark', 'fa-bars');
-        } else {
-            localStorage.setItem('sidebar-collapsed', 'false');
-            icon.classList.replace('fa-bars', 'fa-xmark');
-        }
-    }
-
-    document.addEventListener("DOMContentLoaded", function() {
-        if (localStorage.getItem('sidebar-collapsed') === 'true') {
-            document.body.classList.add('sidebar-is-collapsed');
-            document.getElementById('sidebar').classList.add('collapsed');
-            document.getElementById('toggleBtn').classList.replace('fa-xmark', 'fa-bars');
-        }
-    });
 
     function toggleLogout() {
         document.getElementById('logoutDropdown').classList.toggle('show');

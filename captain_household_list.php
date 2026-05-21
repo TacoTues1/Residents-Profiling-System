@@ -44,34 +44,25 @@ if ($all_members_query) {
         
         /* Main Content */
         .main-container { flex: 1; overflow-y: auto; display: flex; flex-direction: column; box-sizing: border-box; width: 100%; }
-        .header { background: white; padding: 15px 25px; border-radius: 16px; display: flex; justify-content: space-between; align-items: center; margin: 25px 30px; box-sizing: border-box; }
-        .content-body { padding: 0 30px 30px 30px; box-sizing: border-box; width: 100%; }
 
-        .content-card { background: white; border-radius: 16px; padding: 25px; border: 1px solid #e2e8f0; overflow-x: auto; width: 100%; box-sizing: border-box; }
+        .content-card { background: white; border-radius: 12px; padding: 24px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow-x: auto; width: 100%; box-sizing: border-box; }
         .table-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 16px; flex-wrap: wrap; }
         .filter-group { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-        .search-bar { background: #f1f5f9; border: none; padding: 10px 20px; border-radius: 16px; width: 300px; max-width: 100%; box-sizing: border-box; font-size: 14px; outline: none; }
-        .category-select { padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 16px; font-size: 14px; outline: none; background: white; color: #334155; cursor: pointer; max-width: 100%; box-sizing: border-box; }
+        .search-bar { background: #f1f5f9; border: 1px solid transparent; padding: 10px 16px; border-radius: 8px; width: 300px; max-width: 100%; box-sizing: border-box; font-size: 14px; outline: none; }
+        .search-bar:focus { border-color: var(--accent-blue); background: white; }
+        .category-select { padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; background: white; color: #334155; cursor: pointer; max-width: 100%; box-sizing: border-box; }
         
         table { width: 100%; border-collapse: collapse; min-width: 650px; }
-        th { text-align: left; padding: 15px; color: #64748b; font-size: 14px; border-bottom: 1px solid #e5e7eb; }
-        td { padding: 15px; border-bottom: 1px solid #e5e7eb; font-size: 15px; font-weight: 500; }
+        th { text-align: left; padding: 14px 12px; color: #64748b; font-size: 13px; border-bottom: 1px solid #e2e8f0; }
+        td { padding: 14px 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; font-weight: 500; }
         
-        .status-active { background: #22c55e; color: white; padding: 5px 15px; border-radius: 16px; font-size: 12px; }
-        .view-btn { color: #64748b; cursor: pointer; font-size: 18px; }
+        .status-active { background: #22c55e; color: white; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
+        .view-btn { color: #64748b; cursor: pointer; font-size: 16px; }
 
         @media (max-width: 1024px) {
             .table-controls { flex-direction: column; align-items: stretch; }
             .filter-group { flex-direction: column; align-items: stretch; width: 100%; }
             .search-bar, .category-select { width: 100% !important; }
-            .header { margin: 16px !important; padding: 14px 20px !important; }
-            .content-body { padding: 0 16px 16px 16px !important; }
-        }
-
-        @media (max-width: 768px) {
-            .header { margin: 12px !important; padding: 12px 16px !important; flex-direction: column; gap: 12px; align-items: flex-start; }
-            .content-body { padding: 0 12px 12px 12px !important; }
-            .content-card { padding: 16px; }
         }
     </style>
 </head>
@@ -113,7 +104,7 @@ if ($all_members_query) {
                         <th>Household No.</th>
                         <th>Address</th>
                         <th>Purok</th>
-                        <th>Head of Family</th>
+                        <th>Head of the Household</th>
                         <th>Members</th>
                         <th>Actions</th>
                     </tr>
@@ -188,7 +179,7 @@ if ($all_members_query) {
             <tr style="border-bottom:1px solid #e2e8f0;">
                 <td style="padding:12px; font-weight:600; font-size:14px;">${m.first_name} ${m.last_name}</td>
                 <td style="padding:12px; font-size:14px;">
-                    <span class="status-pill" style="background:${m.relationship === 'Head' ? '#dbeafe' : '#f1f5f9'}; color:${m.relationship === 'Head' ? '#1d4ed8' : '#475569'}; padding:4px 10px; border-radius:12px; font-weight:600; font-size:12px;">${m.relationship}</span>
+                    <span class="status-pill" style="background:${m.relationship === 'Head' ? '#ffedd5' : '#f1f5f9'}; color:${m.relationship === 'Head' ? '#ea580c' : '#475569'}; padding:4px 10px; border-radius:12px; font-weight:600; font-size:12px;">${m.relationship}</span>
                 </td>
                 <td style="padding:12px; font-size:14px;">${m.age}</td>
                 <td style="padding:12px; font-size:14px;">${m.gender}</td>
@@ -208,7 +199,7 @@ if ($all_members_query) {
         <button onclick="closeHouseholdModal()" style="position:absolute; top:24px; right:24px; background:none; border:none; font-size:24px; cursor:pointer; color:#64748b;"><i class="fa-solid fa-xmark"></i></button>
         <div style="margin-bottom:24px; border-bottom:1px solid #e2e8f0; padding-bottom:20px;">
             <h2 style="margin:0 0 4px 0; font-size:22px; color:inherit;">Household #<span id="modalHHNo"></span></h2>
-            <p style="margin:0; color:#64748b; font-size:14px;"><i class="fa-solid fa-location-dot" style="color:#2563eb; margin-right:6px;"></i> <span id="modalHHAddress"></span> (Purok <span id="modalHHPurok"></span>)</p>
+            <p style="margin:0; color:#64748b; font-size:14px;"><i class="fa-solid fa-location-dot" style="color:var(--accent-blue); margin-right:6px;"></i> <span id="modalHHAddress"></span> (Purok <span id="modalHHPurok"></span>)</p>
         </div>
         <h3 style="font-size:16px; margin:0 0 16px 0; color:inherit;">Household Members</h3>
         <table style="width:100%; border-collapse:collapse; margin-bottom:16px;">

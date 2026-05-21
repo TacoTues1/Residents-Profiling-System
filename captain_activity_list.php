@@ -14,7 +14,7 @@ $display_role = trim($_SESSION['role'] ?? 'Barangay Captain');
 // Fetch Activities with a count of how many residents have already received assistance
 $query = "SELECT a.*, 
           (SELECT COUNT(*) FROM activity_participants ap WHERE ap.activity_id = a.id) as beneficiary_count 
-          FROM activities a ORDER BY a.id DESC";
+          FROM activities a WHERE COALESCE(a.is_archived, 0) = 0 ORDER BY a.id DESC";
 $result = mysqli_query($conn, $query);
 ?>
 
@@ -23,7 +23,7 @@ $result = mysqli_query($conn, $query);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Activity List - Barangay Captain</title>
+    <title>Activity Dates - Barangay Captain</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -38,36 +38,32 @@ $result = mysqli_query($conn, $query);
         body { font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; background: #f1f5f9; overflow: hidden; }
 
         .main-container { flex: 1; overflow-y: auto; display: flex; flex-direction: column; box-sizing: border-box; width: 100%; }
-        .top-header { display: flex; justify-content: space-between; align-items: center; }
 
-        .content-body { padding: 16px 20px 20px; }
-        .panel { background: white; border: 1px solid #e2e8f0; padding: 24px; border-radius: 20px; }
+        .panel { background: white; border: 1px solid #e2e8f0; padding: 24px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         
         table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; padding: 16px 15px; border-bottom: 2px solid #e5e7eb; font-size: 12px; color: var(--text-gray); letter-spacing: 0.5px; text-transform: uppercase; }
-        td { padding: 18px 15px; border-bottom: 1px solid #e5e7eb; font-size: 15px; color: #334155; }
-        tr:hover { background-color: #f8fafc; }
+        th { text-align: left; padding: 14px 12px; border-bottom: 2px solid #e2e8f0; font-size: 12px; color: var(--text-gray); letter-spacing: 0.5px; text-transform: uppercase; }
+        td { padding: 14px 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #334155; }
 
-        .badge { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; background: #f1f5f9; color: #64748b; display: inline-flex; align-items: center; gap: 6px; }
+        .badge { padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: #f1f5f9; color: #64748b; display: inline-flex; align-items: center; gap: 6px; }
         .badge-success { background: #e8f5e9; color: #2e7d32; }
         
-        .action-link { text-decoration: none; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; color: var(--accent-blue); background: #eff6ff; padding: 8px 14px; border-radius: 10px; }
-        .action-link:hover { background: #dbeafe; }
+        .action-link { text-decoration: none; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; color: var(--accent-blue); background: #eff6ff; padding: 6px 12px; border-radius: 8px; }
 
         /* --- MODAL --- */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); z-index: 999; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
-        .modal-container { background: white; width: 100%; max-width: 750px; border-radius: 24px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); border: 1px solid #e2e8f0; display: flex; flex-direction: column; max-height: 85vh; }
-        .modal-header { padding: 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #ffffff; }
-        .modal-header h3 { margin: 0; font-size: 20px; color: #1e293b; font-weight: 700; }
-        .modal-close { background: #f1f5f9; border: none; font-size: 18px; cursor: pointer; color: #64748b; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+        .modal-container { background: white; width: 100%; max-width: 750px; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0; display: flex; flex-direction: column; max-height: 85vh; }
+        .modal-header { padding: 20px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #ffffff; }
+        .modal-header h3 { margin: 0; font-size: 18px; color: #1e293b; font-weight: 700; }
+        .modal-close { background: #f1f5f9; border: none; font-size: 16px; cursor: pointer; color: #64748b; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
         .modal-close:hover { background: #e2e8f0; color: #1e293b; }
         .modal-body { padding: 24px; overflow-y: auto; flex: 1; }
         .modal-empty { text-align: center; padding: 40px; color: var(--text-gray); font-size: 15px; }
         
         .modal-table { width: 100%; border-collapse: collapse; }
-        .modal-table th { padding: 12px 16px; border-bottom: 2px solid #e2e8f0; font-size: 12px; color: var(--text-gray); text-transform: uppercase; letter-spacing: 0.5px; }
-        .modal-table td { padding: 16px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #334155; }
-        .status-badge { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; background: #e8f5e9; color: #2e7d32; display: inline-block; }
+        .modal-table th { padding: 10px; border-bottom: 2px solid #e2e8f0; font-size: 12px; color: var(--text-gray); text-transform: uppercase; letter-spacing: 0.5px; }
+        .modal-table td { padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #334155; }
+        .status-badge { padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; background: #e8f5e9; color: #2e7d32; display: inline-block; }
         .status-badge.pending { background: #fee2e2; color: #991b1b; }
     </style>
 </head>
@@ -76,7 +72,7 @@ $result = mysqli_query($conn, $query);
 <?php include_once('left_navbar.php'); ?>
 
 <div class="main-container">
-    <header class="top-header" style="padding: 12px 18px; margin: 12px 12px 0;">
+    <header class="top-header">
         <div>
             <h2 style="margin:0;">Activity Monitoring</h2>
             <p style="margin:0; color: var(--text-gray);">View activities and their participating beneficiaries</p>

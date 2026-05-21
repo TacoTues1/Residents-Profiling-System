@@ -8,7 +8,12 @@ if(!isset($_SESSION['role']) || !in_array($_SESSION['role'], $allowed_roles, tru
     exit();
 }
 
-// Handle restore action
+$proof_col_exists = false;
+$proof_col_check = mysqli_query($conn, "SHOW COLUMNS FROM residents LIKE 'deceased_proof_path'");
+if ($proof_col_check && mysqli_num_rows($proof_col_check) > 0) {
+    $proof_col_exists = true;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['restore_id'])) {
     $restore_id = (int)$_POST['restore_id'];
     $update = "UPDATE residents SET is_archived = 0, archive_reason = NULL, status = 'Active' WHERE id = '$restore_id'";
@@ -20,7 +25,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['restore_id'])) {
     exit();
 }
 
-// Search logic
 $where = ["COALESCE(is_archived, 0) = 1"];
 if (!empty($_GET['search'])) {
     $search = mysqli_real_escape_string($conn, $_GET['search']);
@@ -75,9 +79,26 @@ $result = mysqli_query($conn, $query);
         .reason-badge { padding: 6px 14px; border-radius: 20px; background: #fee2e2; color: #991b1b; font-size: 12px; font-weight: 600; }
 
         .btn-restore { background: var(--accent-blue); color: white; border: none; padding: 10px 20px; border-radius: 12px; font-weight: 600; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+        .proof-link { display: inline-flex; align-items: center; gap: 7px; padding: 8px 12px; border-radius: 10px; background: #eff6ff; color: #1d4ed8; font-size: 13px; font-weight: 700; text-decoration: none; white-space: nowrap; }
+        .proof-empty { color: #94a3b8; font-size: 13px; font-style: italic; white-space: nowrap; }
 
         .empty-state { text-align: center; padding: 60px 20px; color: var(--text-gray); }
         .empty-state i { font-size: 48px; margin-bottom: 4px; color: #cbd5e1; display: block; }
+
+        /* --- MODAL --- */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 999; align-items: center; justify-content: center; }
+        .modal-content { background: white; border-radius: 24px; width: 450px; max-width: 90%; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); transform: scale(0.95); transition: transform 0.2s ease-out; }
+        .modal-overlay.show .modal-content { transform: scale(1); }
+        .modal-body { padding: 32px; text-align: center; }
+        
+        .confirm-icon { width: 64px; height: 64px; background: #dcfce7; color: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; margin: 0 auto 20px; }
+        .confirm-title { font-size: 20px; font-weight: 700; color: #1e293b; margin-bottom: 12px; }
+        .confirm-text { color: #64748b; line-height: 1.6; margin-bottom: 30px; font-size: 15px; }
+        .confirm-actions { display: flex; gap: 12px; justify-content: center; }
+        .btn-cancel { padding: 12px 24px; border-radius: 12px; border: 1px solid #e2e8f0; background: white; color: #64748b; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-cancel:hover { background: #f8fafc; color: #1e293b; border-color: #cbd5e1; }
+        .btn-confirm-restore { padding: 12px 24px; border-radius: 12px; border: none; background: var(--accent-blue); color: white; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 6px -1px rgba(130, 78, 57, 0.2); }
+        .btn-confirm-restore:hover { background: var(--accent-blue-hover); transform: translateY(-1px); box-shadow: 0 10px 15px -3px rgba(130, 78, 57, 0.3); }
     </style>
 </head>
 <body>
@@ -127,6 +148,9 @@ $result = mysqli_query($conn, $query);
                         <th>Gender</th>
                         <th>Status</th>
                         <th>Reason</th>
+                        <?php if ($proof_col_exists): ?>
+                            <th>Deceased Proof</th>
+                        <?php endif; ?>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -140,20 +164,36 @@ $result = mysqli_query($conn, $query);
                             <td><?php echo htmlspecialchars($row['age'] ?? 'N/A'); ?></td>
                             <td><?php echo htmlspecialchars($row['gender'] ?? 'N/A'); ?></td>
                             <td><span class="reason-badge"><?php echo htmlspecialchars($row['status'] ?? 'N/A'); ?></span></td>
-                            <td><?php echo htmlspecialchars($row['archive_reason'] ?? 'N/A'); ?></td>
-                            <td>
-                                <form method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to restore this resident?')">
-                                    <input type="hidden" name="restore_id" value="<?php echo (int)$row['id']; ?>">
-                                    <button type="submit" class="btn-restore">
-                                        <i class="fa-solid fa-rotate-left"></i> Restore
-                                    </button>
-                                </form>
-                            </td>
+                             <td><?php echo htmlspecialchars($row['archive_reason'] ?? 'N/A'); ?></td>
+                             <?php if ($proof_col_exists): ?>
+                                 <td>
+                                     <?php
+                                         $proof_path = trim((string)($row['deceased_proof_path'] ?? ''));
+                                         $has_deceased_proof = $proof_path !== '' && (($row['status'] ?? '') === 'Deceased' || ($row['archive_reason'] ?? '') === 'Deceased');
+                                     ?>
+                                     <?php if ($has_deceased_proof): ?>
+                                         <a class="proof-link" href="<?php echo htmlspecialchars($proof_path); ?>" target="_blank" rel="noopener noreferrer">
+                                             <i class="fa-solid fa-file-lines"></i> View Proof
+                                         </a>
+                                     <?php else: ?>
+                                         <span class="proof-empty">No file</span>
+                                     <?php endif; ?>
+                                 </td>
+                             <?php endif; ?>
+                             <td>
+                                 <?php if ($_SESSION['role'] === 'Secretary'): ?>
+                                     <button type="button" class="btn-restore" onclick="openRestoreModal(<?php echo (int)$row['id']; ?>, '<?php echo htmlspecialchars(addslashes($row['last_name'] . ', ' . $row['first_name'])); ?>')">
+                                         <i class="fa-solid fa-rotate-left"></i> Restore
+                                     </button>
+                                 <?php else: ?>
+                                     <span style="color: #94a3b8; font-size: 13px; font-style: italic;"><i class="fa-solid fa-lock"></i> View Only</span>
+                                 <?php endif; ?>
+                             </td>
                         </tr>
                         <?php endwhile; ?>
                     <?php endif; ?>
                     <tr id="archiveNoResults" style="<?php echo $has_rows ? 'display: none;' : ''; ?>">
-                        <td colspan="7">
+                        <td colspan="<?php echo $proof_col_exists ? 8 : 7; ?>">
                             <div class="empty-state">
                                 <i class="fa-solid fa-box-archive"></i>
                                 No archived residents found.
@@ -166,27 +206,31 @@ $result = mysqli_query($conn, $query);
     </div>
 </div>
 
-<script>
-    function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const icon = document.getElementById('toggleBtn');
-        sidebar.classList.toggle('collapsed');
-        document.body.classList.toggle('sidebar-is-collapsed');
-        if (sidebar.classList.contains('collapsed')) {
-            icon.classList.replace('fa-xmark', 'fa-bars');
-            localStorage.setItem('sidebar-collapsed', 'true');
-        } else {
-            icon.classList.replace('fa-bars', 'fa-xmark');
-            localStorage.setItem('sidebar-collapsed', 'false');
-        }
-    }
+<!-- Restore Confirmation Modal -->
+<div class="modal-overlay" id="restoreModal">
+    <div class="modal-content">
+        <div class="modal-body">
+            <div class="confirm-icon">
+                <i class="fa-solid fa-user-check"></i>
+            </div>
+            <div class="confirm-title">Restore Resident?</div>
+            <div class="confirm-text">
+                Are you sure you want to restore <strong id="restoreResidentName" style="color: #1e293b;">this resident</strong>?<br>
+                This will move them back to the active household list.
+            </div>
+            <form method="POST" id="restoreForm">
+                <input type="hidden" name="restore_id" id="restoreIdInput">
+                <div class="confirm-actions">
+                    <button type="button" class="btn-cancel" onclick="closeRestoreModal()">Cancel</button>
+                    <button type="submit" class="btn-confirm-restore">Yes, Restore Resident</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
+<script>
     document.addEventListener("DOMContentLoaded", function() {
-        if (localStorage.getItem('sidebar-collapsed') === 'true') {
-            document.body.classList.add('sidebar-is-collapsed');
-            document.getElementById('sidebar').classList.add('collapsed');
-            document.getElementById('toggleBtn').classList.replace('fa-xmark', 'fa-bars');
-        }
         setupArchiveSearch();
     });
 
@@ -200,6 +244,30 @@ $result = mysqli_query($conn, $query);
             if (dropdown && dropdown.classList.contains('show')) {
                 dropdown.classList.remove('show');
             }
+        }
+    }
+
+    function openRestoreModal(id, name) {
+        document.getElementById('restoreIdInput').value = id;
+        document.getElementById('restoreResidentName').textContent = name;
+        const modal = document.getElementById('restoreModal');
+        modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('show'), 10);
+    }
+
+    function closeRestoreModal() {
+        const modal = document.getElementById('restoreModal');
+        modal.classList.remove('show');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 200);
+    }
+
+    // Close modal when clicking overlay
+    window.onclick = function(event) {
+        const modal = document.getElementById('restoreModal');
+        if (event.target == modal) {
+            closeRestoreModal();
         }
     }
 
@@ -238,7 +306,6 @@ $result = mysqli_query($conn, $query);
 </script>
 </body>
 </html>
-
 
 
 

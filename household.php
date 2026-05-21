@@ -58,7 +58,7 @@ $result = mysqli_query($conn, $query);
                     <th>Household No.</th>
                     <th>Address</th>
                     <th>Purok</th>
-                    <th>Head of Family</th>
+                    <th>Head of the Household</th>
                     <th>Members</th>
                     <th>Actions</th>
                 </tr>

@@ -4,10 +4,23 @@ session_start();
 include('db.php');
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $survey_date = trim($_POST['survey_date'] ?? '');
+    $today = date('Y-m-d');
+
+    if ($survey_date === '') {
+        header("Location: add_household.php?error=survey_date_required");
+        exit();
+    }
+
+    if (strtotime($survey_date) > strtotime($today)) {
+        header("Location: add_household.php?error=survey_date_future");
+        exit();
+    }
+
     // Save the household data into a session variable
     $_SESSION['temp_household_data'] = [
         'hh_no' => $_POST['hh_no'],
-        'survey_date' => $_POST['survey_date'],
+        'survey_date' => $survey_date,
         'address' => $_POST['address'],
         'purok' => $_POST['purok'],
         'house' => $_POST['house'],
@@ -23,7 +36,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     exit();
 }
 ?>
-
 
 
 

@@ -6,7 +6,7 @@ $secretary_nav = [
     [
         'href' => 'secretary_dashboard.php',
         'icon' => 'fa-table-cells-large',
-        'label' => 'Dashboard',
+        'label' => 'Overview',
         'pages' => ['secretary_dashboard.php'],
     ],
     [
@@ -24,14 +24,8 @@ $secretary_nav = [
     [
         'href' => 'activities.php',
         'icon' => 'fa-clipboard-list',
-        'label' => 'Activity List',
+        'label' => 'Activity Lists',
         'pages' => ['activities.php', 'manage_beneficiaries.php', 'add_activity.php', 'edit_activity.php'],
-    ],
-    [
-        'href' => 'settings.php',
-        'icon' => 'fa-gear',
-        'label' => 'Settings',
-        'pages' => ['settings.php'],
     ],
 ];
 
@@ -39,7 +33,7 @@ $captain_nav = [
     [
         'href' => 'captain_dashboard.php',
         'icon' => 'fa-table-columns',
-        'label' => 'Dashboard',
+        'label' => 'Overview',
         'pages' => ['captain_dashboard.php'],
     ],
     [
@@ -57,7 +51,7 @@ $captain_nav = [
     [
         'href' => 'captain_activity_list.php',
         'icon' => 'fa-clipboard-list',
-        'label' => 'Activity List',
+        'label' => 'Activity Lists',
         'pages' => ['captain_activity_list.php'],
     ],
     [
@@ -72,18 +66,21 @@ $captain_nav = [
         'label' => 'Manage Users',
         'pages' => ['manage_users.php'],
     ],
-    [
-        'href' => 'settings.php',
-        'icon' => 'fa-gear',
-        'label' => 'Settings',
-        'pages' => ['settings.php'],
-    ],
 ];
 
-$nav_items = ($current_role === 'Barangay Captain') ? $captain_nav : $secretary_nav;
-$show_archived_link = true;
-$role_title = ($current_role === 'Barangay Captain') ? 'Captain' : 'Secretary';
-$role_subtitle = ($current_role === 'Barangay Captain') ? 'Barangay Captain' : 'Barangay Secretary';
+$former_captain_nav = [
+    [
+        'href' => 'captain_dashboard.php',
+        'icon' => 'fa-table-columns',
+        'label' => 'Overview',
+        'pages' => ['captain_dashboard.php'],
+    ]
+];
+
+$nav_items = ($current_role === 'Barangay Captain') ? $captain_nav : (($current_role === 'Former Captain') ? $former_captain_nav : $secretary_nav);
+$show_archived_link = ($current_role !== 'Former Captain');
+$role_title = $_SESSION['full_name'] ?? $_SESSION['username'] ?? 'User';
+$role_subtitle = ($current_role === 'Barangay Captain') ? 'Barangay Captain' : (($current_role === 'Former Captain') ? 'Former Captain' : 'Barangay Secretary');
 
 function left_nav_active($current, $pages) {
     return in_array($current, $pages, true) ? ' active' : '';
@@ -91,13 +88,87 @@ function left_nav_active($current, $pages) {
 ?>
 
 <style>
+    :root {
+        --accent-blue: #824E39 !important;
+        --accent-blue-hover: #693C2A !important;
+        --accent-color: #824E39 !important;
+        --accent-color-hover: #693C2A !important;
+        --primary: #824E39 !important;
+        --primary-hover: #693C2A !important;
+    }
+
     body.preload-transitions * {
         transition: none !important;
     }
 
+    /* Unified Layout & Flat Corporate Admin Look */
+    header.top-header, header.header, .top-header, .header {
+        background: transparent !important;
+        padding: 20px 40px 10px 40px !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        border: none !important;
+        border-bottom: none !important;
+        min-height: 70px !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        box-shadow: none !important;
+        width: 100% !important;
+        float: none !important;
+        position: relative !important;
+        flex-shrink: 0 !important;
+    }
+    header.top-header h2, header.header h2, .top-header h2, .header h2 {
+        font-size: 32px !important;
+        font-weight: 800 !important;
+        color: #0f172a !important;
+        margin: 0 !important;
+        letter-spacing: -1px !important;
+        line-height: 1.2 !important;
+        font-family: 'Inter', sans-serif !important;
+    }
+    header.top-header p, header.header p, .top-header p, .header p {
+        font-size: 16px !important;
+        color: #64748b !important;
+        margin: 6px 0 0 0 !important;
+        font-family: 'Inter', sans-serif !important;
+    }
+    .content-body {
+        padding: 10px 40px 40px 40px !important;
+        margin: 0 !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        margin-top: 0 !important;
+        position: relative !important;
+        z-index: 1 !important;
+    }
+    
+    /* Dark Mode Overrides for Unified Layout */
+    body.dark-mode header.top-header, 
+    body.dark-mode header.header, 
+    body.dark-mode .top-header, 
+    body.dark-mode .header {
+        background: transparent !important;
+        border-bottom: none !important;
+    }
+    body.dark-mode header.top-header h2, 
+    body.dark-mode header.header h2, 
+    body.dark-mode .top-header h2, 
+    body.dark-mode .header h2 {
+        color: #ffffff !important;
+    }
+    body.dark-mode header.top-header p, 
+    body.dark-mode header.header p, 
+    body.dark-mode .top-header p, 
+    body.dark-mode .header p {
+        color: #94a3b8 !important;
+    }
+
     .sidebar {
-        width: 220px !important;
-        min-width: 220px !important;
+        width: 260px !important;
+        min-width: 260px !important;
         height: calc(100vh - 32px) !important;
         background: #ffffff !important;
         color: #1e293b !important;
@@ -108,16 +179,40 @@ function left_nav_active($current, $pages) {
         flex-shrink: 0 !important;
         margin: 12px 2px 12px 12px !important;
         border-radius: 20px !important;
-        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.22) !important;
-        z-index: 50 !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05) !important;
+        z-index: 9999 !important;
         transition: width 0.42s cubic-bezier(0.22, 1, 0.36, 1), min-width 0.42s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease !important;
-        overflow: hidden !important;
+        overflow: visible !important;
         will-change: width, min-width !important;
     }
 
+    body.modal-open .sidebar {
+        z-index: 1 !important;
+        pointer-events: none !important;
+    }
+
+    /* Ensure modal overlays always cover the sidebar */
+    .modal-overlay,
+    .preview-modal,
+    .details-modal,
+    .lightbox-modal,
+    .end-term-modal,
+    #selectHouseholdModal,
+    #memberDetailsModal,
+    #residentDetailModal,
+    #householdDetailModal,
+    #activityModal,
+    #archiveModal,
+    #restoreModal,
+    #successModal,
+    #deleteModal {
+        z-index: 99999 !important;
+    }
+
     .sidebar.collapsed {
-        width: 68px !important;
-        min-width: 68px !important;
+        width: 74px !important; /* Perfectly balances 12px padding + 50px logo + 12px padding */
+        min-width: 74px !important;
     }
 
     .sidebar-header {
@@ -143,7 +238,7 @@ function left_nav_active($current, $pages) {
     }
 
     .brand-logo-container {
-        border: 3px solid #ff9800 !important;
+        border: 3px solid var(--accent-blue) !important;
         border-radius: 14px !important;
         width: 55px !important;
         height: 55px !important;
@@ -155,7 +250,7 @@ function left_nav_active($current, $pages) {
     }
 
     .brand-logo-container i {
-        color: #ff9800 !important;
+        color: var(--accent-blue) !important;
         font-size: 30px !important;
     }
 
@@ -169,10 +264,12 @@ function left_nav_active($current, $pages) {
 
     .brand-text {
         margin-left: 12px !important;
-        white-space: normal !important;
+        white-space: nowrap !important;
         line-height: 1.2 !important;
-        width: 110px !important;
-        min-width: 110px !important;
+        width: 150px !important;
+        opacity: 1 !important;
+        overflow: hidden !important;
+        transition: width 0.35s ease, opacity 0.3s ease, margin 0.35s ease !important;
     }
 
     .brand-text b {
@@ -180,6 +277,9 @@ function left_nav_active($current, $pages) {
         font-size: 14px !important;
         color: #1e293b !important;
         line-height: 1.2 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
     }
 
     .brand-text span {
@@ -187,21 +287,59 @@ function left_nav_active($current, $pages) {
         color: #94a3b8 !important;
         font-size: 11px !important;
         margin-top: 2px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
     }
 
     .toggle-icon {
         cursor: pointer !important;
-        color: #64748b !important;
-        font-size: 22px !important;
-        position: absolute !important;
-        right: 12px !important;
+        z-index: 10000 !important;
         line-height: 1 !important;
-        transition: right 0.42s cubic-bezier(0.22, 1, 0.36, 1), transform 0.42s cubic-bezier(0.22, 1, 0.36, 1), color 0.2s ease !important;
-        z-index: 10 !important;
+        transition: right 0.42s cubic-bezier(0.22, 1, 0.36, 1), color 0.2s ease, background-color 0.2s ease !important;
     }
 
     .toggle-icon:hover {
-        color: white !important;
+        cursor: pointer !important;
+    }
+
+    @media (min-width: 769px) {
+        .toggle-icon {
+            color: var(--accent-blue) !important;
+            background: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 50% !important;
+            width: 24px !important;
+            height: 24px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            position: absolute !important;
+            right: -12px !important;
+            top: 33px !important;
+            font-size: 11px !important;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08) !important;
+        }
+        body.dark-mode .toggle-icon {
+            background: #1e293b !important;
+            border-color: #334155 !important;
+            color: #d29d8a !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .toggle-icon {
+            color: #64748b !important;
+            display: block !important;
+            position: absolute !important;
+            right: 20px !important;
+            top: 24px !important;
+            font-size: 24px !important;
+        }
+        body.dark-mode .toggle-icon {
+            color: #cbd5e1 !important;
+        }
     }
 
     .nav-menu {
@@ -231,7 +369,7 @@ function left_nav_active($current, $pages) {
     }
 
     .nav-item.active {
-        background: #2563eb !important;
+        background: var(--accent-blue) !important;
         color: white !important;
     }
 
@@ -254,15 +392,80 @@ function left_nav_active($current, $pages) {
         transition: opacity 0.16s ease !important;
     }
 
+    .nav-item.has-dropdown {
+        position: relative !important;
+        cursor: pointer !important;
+    }
+
+    .dropdown-arrow {
+        margin-left: auto !important;
+        font-size: 11px !important;
+        transition: transform 0.2s ease !important;
+    }
+
+    .sidebar.collapsed .dropdown-arrow {
+        display: none !important;
+    }
+
+    .nav-dropdown-menu {
+        position: absolute !important;
+        left: calc(100% + 8px) !important;
+        top: 0 !important;
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 12px !important;
+        padding: 6px !important;
+        width: max-content !important;
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18) !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        transform: translateX(-10px) !important;
+        transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+        z-index: 100 !important;
+    }
+
+    .nav-item.has-dropdown:hover .nav-dropdown-menu {
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: translateX(0) !important;
+    }
+
+    .nav-dropdown-item {
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        padding: 10px 14px !important;
+        color: #334155 !important;
+        text-decoration: none !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        border-radius: 8px !important;
+        transition: background 0.2s ease !important;
+    }
+
+    .nav-dropdown-item:hover {
+        background: #f1f5f9 !important;
+        color: #1e293b !important;
+    }
+    
+    .nav-dropdown-item i {
+        width: 16px !important;
+        min-width: 16px !important;
+        font-size: 14px !important;
+        text-align: center !important;
+    }
+
     .sidebar-footer {
         margin-top: auto !important;
         padding: 10px 10px 12px !important;
         border-top: 1px solid rgba(148, 163, 184, 0.15) !important;
         position: relative !important;
+        overflow: visible !important;
     }
 
     .sidebar-profile-container {
         position: relative !important;
+        overflow: visible !important;
     }
 
     .sidebar-account {
@@ -287,7 +490,7 @@ function left_nav_active($current, $pages) {
         width: 32px !important;
         height: 32px !important;
         border-radius: 50% !important;
-        background: #2563eb !important;
+        background: var(--accent-blue) !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
@@ -329,10 +532,10 @@ function left_nav_active($current, $pages) {
         background: #ffffff !important;
         border: 1px solid #e2e8f0 !important;
         border-radius: 12px !important;
-        overflow: hidden !important;
         display: none !important;
         box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18) !important;
-        z-index: 130 !important;
+        z-index: 10000 !important;
+        overflow: visible !important;
     }
 
     .sidebar-logout-dropdown.show {
@@ -366,18 +569,74 @@ function left_nav_active($current, $pages) {
         font-size: 14px !important;
     }
 
-    .top-header,
-    .header {
+    .sidebar-dropdown-link.has-submenu {
+        position: relative !important;
+        cursor: pointer !important;
+    }
+
+    .submenu-arrow {
+        transition: transform 0.2s ease !important;
+        font-size: 11px !important;
+    }
+
+    .sidebar-dropdown-link.has-submenu:hover .submenu-arrow {
+        transform: rotate(90deg) !important;
+    }
+
+    .sidebar-submenu {
+        position: absolute !important;
+        left: calc(100% + 4px) !important;
+        top: 0 !important;
         background: #ffffff !important;
         border: 1px solid #e2e8f0 !important;
+        border-radius: 12px !important;
+        padding: 6px !important;
+        width: max-content !important;
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18) !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        transform: translateX(-10px) !important;
+        transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+        z-index: 140 !important;
+    }
+
+    .sidebar-dropdown-link.has-submenu:hover .sidebar-submenu {
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: translateX(0) !important;
+    }
+
+    .submenu-item {
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        padding: 10px 14px !important;
+        color: #334155 !important;
+        text-decoration: none !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        border-radius: 8px !important;
+        white-space: nowrap !important;
+        transition: background 0.2s ease !important;
+    }
+
+    .submenu-item:hover {
+        background: #f1f5f9 !important;
+        color: #1e293b !important;
+    }
+
+    .header {
+        background: transparent !important;
+        border: none !important;
         border-radius: 18px !important;
         margin: 12px 12px 0 !important;
         padding: 12px 18px !important;
         box-sizing: border-box !important;
     }
 
-    .main-container > .content-body {
-        padding-top: 12px !important;
+    .header, .report-panel, .settings-card, .records-card, .content-card {
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05) !important;
+        border: 1px solid #e2e8f0 !important;
     }
 
     .sidebar-dropdown-link {
@@ -402,21 +661,22 @@ function left_nav_active($current, $pages) {
     }
 
     .sidebar.collapsed .brand-group {
-        opacity: 0 !important;
-        pointer-events: none !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
     }
 
     .sidebar.collapsed .sidebar-header {
-        justify-content: center !important;
-        padding: 16px 0 !important;
+        /* Let it inherit the same 12px padding as expanded state so the logo doesn't jump vertically or horizontally */
     }
 
     .sidebar.collapsed .toggle-icon {
-        right: 50% !important;
-        transform: translateX(50%) !important;
+        /* Keep visible in collapsed state */
+    }
+
+    .sidebar.collapsed .brand-text {
+        opacity: 0 !important;
+        width: 0 !important;
         margin-left: 0 !important;
-        color: #64748b !important;
-        font-size: 24px !important;
     }
 
     .sidebar.collapsed .nav-text {
@@ -468,7 +728,8 @@ function left_nav_active($current, $pages) {
     body.dark-mode .sidebar {
         background: #1e293b !important;
         color: white !important;
-        border-right: 1px solid #334155 !important;
+        border: 1px solid #334155 !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
     }
     body.dark-mode .brand-text b { color: white !important; }
     body.dark-mode .brand-text span { color: #94a3b8 !important; }
@@ -476,21 +737,29 @@ function left_nav_active($current, $pages) {
     body.dark-mode .sidebar.collapsed .toggle-icon { color: white !important; }
     body.dark-mode .nav-item { color: #cbd5e1 !important; }
     body.dark-mode .nav-item:hover { background: rgba(148, 163, 184, 0.14) !important; color: white !important; }
-    body.dark-mode .nav-item.active { background: #2563eb !important; color: white !important; }
+    body.dark-mode .nav-item.active { background: var(--accent-blue) !important; color: white !important; }
+    body.dark-mode .sidebar-submenu { background: #1e293b !important; border-color: #334155 !important; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3) !important; }
+    body.dark-mode .submenu-item { color: #cbd5e1 !important; }
+    body.dark-mode .submenu-item:hover { background: rgba(148, 163, 184, 0.14) !important; color: white !important; }
+    body.dark-mode .sidebar-dropdown-link { color: #cbd5e1 !important; border-bottom-color: #334155 !important; }
+    body.dark-mode .sidebar-dropdown-link:hover { background: rgba(248, 250, 252, 0.05) !important; color: white !important; }
     body.dark-mode .sidebar-account { background: rgba(248, 250, 252, 0.09) !important; border-color: rgba(148, 163, 184, 0.24) !important; color: #e2e8f0 !important; }
     body.dark-mode .sidebar-account:hover { background: rgba(248, 250, 252, 0.14) !important; border-color: rgba(148, 163, 184, 0.36) !important; }
     body.dark-mode .sidebar-account-name { color: #f8fafc !important; }
     body.dark-mode .sidebar-account-role { color: #94a3b8 !important; }
     body.dark-mode .sidebar-footer { border-color: rgba(148, 163, 184, 0.15) !important; }
+    
+    /* Logout Dropdown Dark Mode */
+    body.dark-mode .sidebar-logout-dropdown { background: #1e293b !important; border-color: #334155 !important; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4) !important; }
+    body.dark-mode .sidebar-dropdown-header { border-bottom-color: #334155 !important; color: #94a3b8 !important; }
+    body.dark-mode .sidebar-dropdown-header b { color: #f8fafc !important; }
+    body.dark-mode .sidebar-logout-btn:hover { background: rgba(248, 113, 113, 0.1) !important; }
 
-    body.dark-mode .top-header,
     body.dark-mode .header {
-        background: #1e293b !important;
-        border-color: #334155 !important;
+        background: transparent !important;
+        border-color: transparent !important;
     }
-    body.dark-mode .top-header h2,
     body.dark-mode .header h2 { color: white !important; }
-    body.dark-mode .top-header p,
     body.dark-mode .header p { color: #94a3b8 !important; }
     
     body.dark-mode .user-pill {
@@ -511,25 +780,25 @@ function left_nav_active($current, $pages) {
     body.dark-mode .report-panel,
     body.dark-mode .settings-card,
     body.dark-mode .records-card,
-    body.dark-mode .content-card { background: #1e293b !important; border-color: #334155 !important; }
+    body.dark-mode .content-card { background: #1e293b !important; border-color: #334155 !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; }
     body.dark-mode .panel h3, body.dark-mode .panel h2,
     body.dark-mode .report-panel h3, body.dark-mode .report-panel h2,
     body.dark-mode .settings-card h3, body.dark-mode .records-card h3,
     body.dark-mode .content-card h3 { color: white !important; }
     
-    body.dark-mode .stat-card { background: #1e293b !important; border-color: #334155 !important; }
+    body.dark-mode .stat-card { background: #1e293b !important; border-color: #334155 !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; }
     body.dark-mode .stat-card h2 { color: white !important; }
     body.dark-mode .stat-card p { color: #94a3b8 !important; }
     
-    body.dark-mode .chart-tile { background: #0f172a !important; border-color: #334155 !important; }
+    body.dark-mode .chart-tile { background: #0f172a !important; border-color: #334155 !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; }
     body.dark-mode .chart-tile h4 { color: white !important; }
     
     body.dark-mode .form-group label { color: #cbd5e1 !important; }
     
     body.dark-mode td strong { color: white !important; }
     
-    body.dark-mode .action-link { background: rgba(37, 99, 235, 0.2) !important; color: #60a5fa !important; }
-    body.dark-mode .action-link:hover { background: rgba(37, 99, 235, 0.4) !important; color: white !important; }
+    body.dark-mode .action-link { background: rgba(130, 78, 57, 0.2) !important; color: #d29d8a !important; }
+    body.dark-mode .action-link:hover { background: rgba(130, 78, 57, 0.4) !important; color: white !important; }
     
     body.dark-mode table th { border-bottom-color: #334155 !important; color: #94a3b8 !important; }
     body.dark-mode table td { border-bottom-color: #334155 !important; color: #e2e8f0 !important; }
@@ -540,8 +809,8 @@ function left_nav_active($current, $pages) {
     body.dark-mode .report-tabs { background: #0f172a !important; border-color: #334155 !important; }
     body.dark-mode .report-tab { color: #94a3b8 !important; }
     body.dark-mode .report-tab:hover { color: white !important; background: rgba(248, 250, 252, 0.05) !important; }
-    body.dark-mode .report-tab.active { background: #2563eb !important; color: white !important; }
-    body.dark-mode .hh-group-header { background: #0f172a !important; border-left-color: #2563eb !important; }
+    body.dark-mode .report-tab.active { background: var(--accent-blue) !important; color: white !important; }
+    body.dark-mode .hh-group-header { background: #0f172a !important; border-left-color: var(--accent-blue) !important; }
     body.dark-mode .hh-group-header h4 { color: white !important; }
     
     body.dark-mode .modal-content, body.dark-mode .modal-container, body.dark-mode .edit-card { background: #1e293b !important; border-color: #334155 !important; }
@@ -646,6 +915,16 @@ function left_nav_active($current, $pages) {
             overflow-y: visible !important;
             padding-bottom: 40px !important;
         }
+        header.top-header, header.header, .top-header, .header {
+            padding: 16px 20px 8px 20px !important;
+            min-height: 60px !important;
+        }
+        header.top-header h2, header.header h2, .top-header h2, .header h2 {
+            font-size: 24px !important;
+        }
+        .content-body {
+            padding: 8px 20px 30px 20px !important;
+        }
     }
 
     @media print {
@@ -662,10 +941,10 @@ function left_nav_active($current, $pages) {
 <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="brand-group" id="brandGroup">
-            <img src="logo/logopulantubig.png" class="logo" alt="Barangay Logo"> 
+            <img src="logo/logopulantubig.png" class="logo" alt="Barangay Logo" style="cursor: pointer;" onclick="if(document.getElementById('sidebar').classList.contains('collapsed')) toggleSidebar()"> 
             <div class="brand-text"><b>Barangay Pulantubig</b><span>Residents Profiling System</span></div>
         </div>
-        <i class="fa-solid fa-angles-right toggle-icon" id="toggleBtn" onclick="toggleSidebar()"></i>
+        <i class="fa-solid fa-chevron-left toggle-icon" id="toggleBtn" onclick="toggleSidebar()"></i>
     </div>
 
     <nav class="nav-menu">
@@ -689,12 +968,43 @@ function left_nav_active($current, $pages) {
             </div>
 
             <div class="sidebar-logout-dropdown" id="sidebarLogoutDropdown">
-                <div class="sidebar-dropdown-header">Signed in as<br><b><?php echo htmlspecialchars($role_title); ?></b></div>
+                <div class="sidebar-dropdown-header">Signed in as<br><b><?php echo htmlspecialchars($role_subtitle); ?></b></div>
                 <?php if ($show_archived_link): ?>
-                    <a href="archived_residents.php" class="sidebar-dropdown-link">
-                        <i class="fa-solid fa-box-archive"></i> Archived Residents
-                    </a>
+                    <div class="sidebar-dropdown-link has-submenu">
+                        <i class="fa-solid fa-box-archive"></i> Archived
+                        <i class="fa-solid fa-caret-right submenu-arrow" style="margin-left: auto;"></i>
+                        
+                        <div class="sidebar-submenu">
+                            <a href="archived_residents.php" class="submenu-item">
+                                <i class="fa-solid fa-users-slash"></i> Residents
+                            </a>
+                            <a href="archived_activities.php" class="submenu-item">
+                                <i class="fa-solid fa-clipboard-check"></i> Activities
+                            </a>
+                            <a href="archived_users.php" class="submenu-item">
+                                <i class="fa-solid fa-user-clock"></i> Users
+                            </a>
+                        </div>
+                    </div>
                 <?php endif; ?>
+
+                <div class="sidebar-dropdown-link has-submenu">
+                    <i class="fa-solid fa-palette"></i> Theme
+                    <i class="fa-solid fa-caret-right submenu-arrow" style="margin-left: auto;"></i>
+                    
+                    <div class="sidebar-submenu">
+                        <a href="#" class="submenu-item theme-switch" data-theme="light">
+                            <i class="fa-solid fa-sun" style="color: #64748b;"></i> Light Mode
+                        </a>
+                        <a href="#" class="submenu-item theme-switch" data-theme="dark">
+                            <i class="fa-solid fa-moon" style="color: #64748b;"></i> Dark Mode
+                        </a>
+                    </div>
+                </div>
+
+                <a href="settings.php" class="sidebar-dropdown-link">
+                    <i class="fa-solid fa-gear"></i> Settings
+                </a>
                 <a href="logout.php" class="sidebar-logout-btn">
                     <i class="fa-solid fa-right-from-bracket"></i> Logout
                 </a>
@@ -708,7 +1018,10 @@ function left_nav_active($current, $pages) {
     if (localStorage.getItem('sidebar-collapsed') === 'true') {
         document.getElementById('sidebar').classList.add('collapsed');
         document.body.classList.add('sidebar-is-collapsed');
-        document.getElementById('toggleBtn').classList.replace('fa-angles-left', 'fa-angles-right');
+        const toggleBtn = document.getElementById('toggleBtn');
+        if (toggleBtn) {
+            toggleBtn.classList.replace('fa-chevron-left', 'fa-chevron-right');
+        }
     }
 
     function closeSidebarAccountDropdown() {
@@ -734,12 +1047,12 @@ function left_nav_active($current, $pages) {
         closeSidebarAccountDropdown();
 
         if (sidebar.classList.contains('collapsed')) {
-            icon.classList.remove('fa-angles-left');
-            icon.classList.add('fa-angles-right');
+            icon.classList.remove('fa-chevron-left');
+            icon.classList.add('fa-chevron-right');
             localStorage.setItem('sidebar-collapsed', 'true');
         } else {
-            icon.classList.remove('fa-angles-right');
-            icon.classList.add('fa-angles-left');
+            icon.classList.remove('fa-chevron-right');
+            icon.classList.add('fa-chevron-left');
             localStorage.setItem('sidebar-collapsed', 'false');
         }
     };
@@ -752,11 +1065,11 @@ function left_nav_active($current, $pages) {
         if (localStorage.getItem('sidebar-collapsed') === 'true') {
             document.body.classList.add('sidebar-is-collapsed');
             sidebar.classList.add('collapsed');
-            icon.classList.remove('fa-angles-left');
-            icon.classList.add('fa-angles-right');
+            icon.classList.remove('fa-chevron-left');
+            icon.classList.add('fa-chevron-right');
         } else {
-            icon.classList.remove('fa-angles-right');
-            icon.classList.add('fa-angles-left');
+            icon.classList.remove('fa-chevron-right');
+            icon.classList.add('fa-chevron-left');
         }
 
         // Restore transitions after initial load
@@ -773,36 +1086,24 @@ function left_nav_active($current, $pages) {
 
     // Dark Mode Initialization and Toggle Logic
     document.addEventListener('DOMContentLoaded', function() {
-        const topHeaders = document.querySelectorAll('.top-header, .header');
-        topHeaders.forEach(header => {
-            if (header.querySelector('.theme-toggle-btn')) return;
-            
-            const toggleBtn = document.createElement('button');
-            toggleBtn.className = 'theme-toggle-btn';
-            toggleBtn.innerHTML = '<i class="fa-solid fa-moon"></i>';
-            toggleBtn.style.cssText = 'background:none; border:none; color:#64748b; font-size:20px; cursor:pointer; outline:none; transition:color 0.2s; padding: 0 10px; margin-left: auto;';
-            
-            header.appendChild(toggleBtn);
-
-            toggleBtn.addEventListener('click', () => {
-                document.body.classList.toggle('dark-mode');
-                const isDark = document.body.classList.contains('dark-mode');
-                localStorage.setItem('theme', isDark ? 'dark' : 'light');
-                updateThemeIcons();
+        const themeSwitches = document.querySelectorAll('.theme-switch');
+        
+        themeSwitches.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const theme = btn.getAttribute('data-theme');
+                if (theme === 'dark') {
+                    document.body.classList.add('dark-mode');
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    document.body.classList.remove('dark-mode');
+                    localStorage.setItem('theme', 'light');
+                }
             });
         });
-
-        function updateThemeIcons() {
-            const isDark = document.body.classList.contains('dark-mode');
-            document.querySelectorAll('.theme-toggle-btn i').forEach(icon => {
-                icon.className = isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
-                icon.style.color = isDark ? '#fbbf24' : '#64748b';
-            });
-        }
 
         if (localStorage.getItem('theme') === 'dark') {
             document.body.classList.add('dark-mode');
         }
-        updateThemeIcons();
     });
 </script>

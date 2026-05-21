@@ -3,9 +3,21 @@ session_start();
 include('db.php');
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    // 1. Capture and sanitize all 10 fields from your form
+    $survey_date = trim($_POST['survey_date'] ?? '');
+    $today = date('Y-m-d');
+
+    if ($survey_date === '') {
+        header("Location: add_household.php?error=survey_date_required");
+        exit();
+    }
+
+    if (strtotime($survey_date) > strtotime($today)) {
+        header("Location: add_household.php?error=survey_date_future");
+        exit();
+    }
+
     $hh_no = mysqli_real_escape_string($conn, $_POST['hh_no']);
-    $survey_date = mysqli_real_escape_string($conn, $_POST['survey_date']);
+    $survey_date = mysqli_real_escape_string($conn, $survey_date);
     $address = mysqli_real_escape_string($conn, $_POST['address']);
     $purok = mysqli_real_escape_string($conn, $_POST['purok']);
     $house = mysqli_real_escape_string($conn, $_POST['house']);
@@ -15,17 +27,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $vulnerability = mysqli_real_escape_string($conn, $_POST['vulnerability']);
     $water = mysqli_real_escape_string($conn, $_POST['water']);
 
-    // 2. Duplicate Check
     $check_query = "SELECT household_no FROM households WHERE household_no = '$hh_no'";
     $result = mysqli_query($conn, $check_query);
 
     if (mysqli_num_rows($result) > 0) {
-        echo "<script>alert('Error: This Household Number already exists.'); window.location.href='add_household.php';</script>";
+        header("Location: add_household.php?error=household_number_exists");
         exit();
     }
 
-    // 3. The Corrected INSERT Query
-    // This connects your form variables to your new database columns (10-14)
     $query = "INSERT INTO households (
                 household_no, 
                 survey_date, 
@@ -52,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     if (mysqli_query($conn, $query)) {
         $_SESSION['current_household_no'] = $hh_no;
-        header("Location: add_members.php"); 
+        header("Location: add_members.php?household_no=" . rawurlencode($hh_no) . "&success=household_added");
         exit();
     } else {
         die("Database Error: " . mysqli_error($conn));
@@ -62,8 +71,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     exit();
 }
 ?>
-
-
 
 
 

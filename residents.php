@@ -1,5 +1,6 @@
 <?php 
 include('db.php');
+include_once('toast_helpers.php');
 session_start();
 
 // Strict Role Access
@@ -10,6 +11,11 @@ if(!isset($_SESSION['role']) || $_SESSION['role'] !== 'Secretary') {
 
 $display_name = trim($_SESSION['full_name'] ?? ($_SESSION['username'] ?? 'User'));
 $display_role = trim($_SESSION['role'] ?? 'Secretary');
+$page_toasts = [];
+$error_toast = app_toast_from_error_code($_GET['error'] ?? '');
+if ($error_toast) {
+    $page_toasts[] = $error_toast;
+}
 
 $where = ["1=1"];
 $show_archived = isset($_GET['show_archived']) && $_GET['show_archived'] == '1';
@@ -98,29 +104,28 @@ $result = mysqli_query($conn, $query);
         body { font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; background: #f1f5f9; overflow: hidden; }
 
         .main-container { flex: 1; overflow-y: auto; display: flex; flex-direction: column; box-sizing: border-box; width: 100%; }
-        .top-header { display: flex; justify-content: space-between; align-items: center; }
 
-        .content-body { padding: 16px 20px 20px; }
-        .panel { background: white; border: 1px solid #e5e7eb; padding: 18px; border-radius: 20px; border: 1px solid #e2e8f0; }
+        .panel { background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
         .controls { display: flex; justify-content: space-between; margin-bottom: 25px; align-items: center; }
-        .search-input, .category-select { padding: 12px; border: 1px solid #e2e8f0; border-radius: 16px; font-size: 15px; outline: none; }
+        .search-input, .category-select { padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; }
         .search-input:focus { border-color: var(--accent-blue); }
         
         table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; padding: 18px 15px; border-bottom: 2px solid #e5e7eb; text- font-size: 12px; color: var(--text-gray); letter-spacing: 0.5px; }
-        td { padding: 18px 15px; border-bottom: 1px solid #e5e7eb; font-size: 15px; color: #334155; }
+        th { text-align: left; padding: 14px 12px; border-bottom: 2px solid #e2e8f0; font-size: 12px; color: var(--text-gray); letter-spacing: 0.5px; }
+        td { padding: 14px 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #334155; }
 
-        .status-pill { padding: 6px 14px; border-radius: 20px; background: #e8f5e9; color: #2e7d32; font-size: 12px; font-weight: 600; }
+        .status-pill { padding: 4px 10px; border-radius: 6px; background: #e8f5e9; color: #2e7d32; font-size: 12px; font-weight: 600; }
         .status-archived { background: #fee2e2; color: #991b1b; }
         
-        .btn-add { background: var(--accent-blue); color: white; padding: 12px 24px; border-radius: 12px; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 10px;  }
+        .btn-add { background: var(--accent-blue); color: white; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
 
-        .action-link { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 10px; text-decoration: none; color: var(--accent-blue); background: #eff6ff; margin-right: 6px; }
+        .action-link { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; text-decoration: none; color: var(--accent-blue); background: #eff6ff; margin-right: 6px; }
     </style>
 </head>
 <body>
 
 <?php include_once('left_navbar.php'); ?>
+<?php render_app_toasts($page_toasts); ?>
 
 <div class="main-container">
     <header class="top-header">
@@ -153,7 +158,7 @@ $result = mysqli_query($conn, $query);
                         <th>Household No.</th>
                         <th>Address</th>
                         <th>Purok</th>
-                        <th>Head of Family</th>
+                        <th>Head of the Household</th>
                         <th>Members</th>
                         <th>Actions</th>
                     </tr>
@@ -229,8 +234,6 @@ $result = mysqli_query($conn, $query);
 </script>
 </body>
 </html>
-
-
 
 
 

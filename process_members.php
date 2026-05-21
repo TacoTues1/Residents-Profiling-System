@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['members'])) {
     $members = $_POST['members'];
 
     foreach ($members as $i => $m) {
-        $current_photo_path = 'uploads/default.png';
+        $current_photo_path = '';
 
         // Photo Logic (Captures both Webcam and Uploads)
         if (!empty($m['photo'])) {
@@ -67,8 +67,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['members'])) {
             $stmt->close();
         }
     }
-    $redirect_url = 'household_members.php?household_no=' . rawurlencode($household_no);
-    echo "<script>alert('Successfully Saved Residents!'); window.location.href=" . json_encode($redirect_url) . ";</script>";
+    $redirect_url = 'household_members.php?household_no=' . rawurlencode($household_no) . '&success=residents_added';
+    header("Location: " . $redirect_url);
+    exit();
 }
 ?>
 

@@ -65,29 +65,27 @@ if ($act_query) {
         body { font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; background: #f1f5f9; overflow: hidden; }
 
         .main-container { flex: 1; overflow-y: auto; display: flex; flex-direction: column; box-sizing: border-box; width: 100%; }
-        .header { background: white; padding: 15px 25px; border-radius: 16px; display: flex; justify-content: space-between; align-items: center; margin: 25px 30px; box-sizing: border-box; }
-        .content-body { padding: 0 30px 30px 30px; box-sizing: border-box; width: 100%; }
 
-        .panel { background: white; border: 1px solid #e5e7eb; padding: 18px; border-radius: 20px; border: 1px solid #e2e8f0; overflow-x: auto; width: 100%; box-sizing: border-box; }
+        .panel { background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); overflow-x: auto; width: 100%; box-sizing: border-box; }
         .controls { display: flex; justify-content: space-between; margin-bottom: 25px; align-items: center; gap: 16px; flex-wrap: wrap; }
         .filter-form { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-        .search-input, .category-select { padding: 12px; border: 1px solid #e2e8f0; border-radius: 16px; font-size: 15px; outline: none; max-width: 100%; box-sizing: border-box; }
+        .search-input, .category-select { padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; max-width: 100%; box-sizing: border-box; }
         .search-input:focus { border-color: var(--accent-blue); }
 
         table { width: 100%; border-collapse: collapse; min-width: 650px; }
-        th { text-align: left; padding: 18px 15px; border-bottom: 2px solid #e5e7eb; font-size: 12px; color: var(--text-gray); letter-spacing: 0.5px; }
-        td { padding: 18px 15px; border-bottom: 1px solid #e5e7eb; font-size: 15px; color: #334155; }
+        th { text-align: left; padding: 14px 12px; border-bottom: 2px solid #e2e8f0; font-size: 12px; color: var(--text-gray); letter-spacing: 0.5px; }
+        td { padding: 14px 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #334155; }
 
-        .status-pill { padding: 6px 14px; border-radius: 20px; background: #e8f5e9; color: #2e7d32; font-size: 12px; font-weight: 600; }
+        .status-pill { padding: 4px 10px; border-radius: 6px; background: #e8f5e9; color: #2e7d32; font-size: 12px; font-weight: 600; }
         .status-archived { background: #fee2e2; color: #991b1b; }
 
-        .action-link { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 10px; text-decoration: none; color: var(--accent-blue); background: #eff6ff; }
+        .action-link { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; text-decoration: none; color: var(--accent-blue); background: #eff6ff; }
 
         .activity-badge {
             background: #e0f2fe;
             color: #0369a1;
-            padding: 4px 10px;
-            border-radius: 12px;
+            padding: 4px 8px;
+            border-radius: 6px;
             font-size: 11px;
             font-weight: 600;
             display: inline-block;
@@ -98,14 +96,6 @@ if ($act_query) {
             .controls { flex-direction: column; align-items: stretch; }
             .filter-form { flex-direction: column; align-items: stretch; width: 100%; }
             .search-input, .category-select { width: 100% !important; box-sizing: border-box; }
-            .header { margin: 16px !important; padding: 14px 20px !important; }
-            .content-body { padding: 0 16px 16px 16px !important; }
-        }
-
-        @media (max-width: 768px) {
-            .header { margin: 12px !important; padding: 12px 16px !important; flex-direction: column; gap: 12px; align-items: flex-start; }
-            .content-body { padding: 0 12px 12px 12px !important; }
-            .panel { padding: 16px; }
         }
     </style>
 </head>
@@ -195,29 +185,7 @@ if ($act_query) {
 
 <script>
     // CONSISTENT SIDEBAR LOGIC
-    function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const icon = document.getElementById('toggleBtn');
-        sidebar.classList.toggle('collapsed');
-        document.body.classList.toggle('sidebar-is-collapsed');
-
-        if (sidebar.classList.contains('collapsed')) {
-            icon.classList.replace('fa-xmark', 'fa-bars');
-            localStorage.setItem('sidebar-collapsed', 'true');
-        } else {
-            icon.classList.replace('fa-bars', 'fa-xmark');
-            localStorage.setItem('sidebar-collapsed', 'false');
-        }
-    }
-
-    // STATE PERSISTENCE ON LOAD
     document.addEventListener("DOMContentLoaded", function() {
-        if (localStorage.getItem('sidebar-collapsed') === 'true') {
-            document.body.classList.add('sidebar-is-collapsed');
-            document.getElementById('sidebar').classList.add('collapsed');
-            document.getElementById('toggleBtn').classList.replace('fa-xmark', 'fa-bars');
-        }
-
         setupResidentSearch();
     });
 
@@ -303,7 +271,7 @@ if ($act_query) {
     <div class="panel modal-container" style="background:white; width:650px; max-width:90%; border-radius:24px; padding:32px; max-height:85vh; overflow-y:auto; position:relative;">
         <button onclick="closeResidentModal()" style="position:absolute; top:24px; right:24px; background:none; border:none; font-size:24px; cursor:pointer; color:#64748b;"><i class="fa-solid fa-xmark"></i></button>
         <div style="display:flex; align-items:center; gap:20px; margin-bottom:24px; border-bottom:1px solid #e2e8f0; padding-bottom:20px;">
-            <img id="modalResPhoto" src="uploads/default.png" style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:2px solid #2563eb;">
+            <img id="modalResPhoto" src="uploads/default.png" style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:2px solid var(--accent-blue);">
             <div>
                 <h2 id="modalResName" style="margin:0 0 4px 0; font-size:22px; color:inherit;"></h2>
                 <p id="modalResHH" style="margin:0; color:#64748b; font-size:14px;"></p>
