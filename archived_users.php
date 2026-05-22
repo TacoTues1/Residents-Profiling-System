@@ -52,8 +52,9 @@ if ($archive_columns_ready) {
         :root { --accent-blue: #2563eb; --text-gray: #64748b; }
         body { font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; background: #f1f5f9; overflow: hidden; }
         .main-container { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+        .top-header { background: #ffffff; padding: 20px 40px; border-bottom: 1px solid #e2e8f0; }
         .content-body { padding: 16px 20px 20px; }
-        .panel { background: white; border: 1px solid #e2e8f0; padding: 24px; border-radius: 20px; }
+        .panel { background: white; border: 1px solid #e2e8f0; padding: 24px; border-radius: 20px; overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; }
         th { text-align: left; padding: 14px 15px; border-bottom: 2px solid #e5e7eb; color: var(--text-gray); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
         td { padding: 14px 15px; border-bottom: 1px solid #e5e7eb; font-size: 14px; color: #334155; }
@@ -64,6 +65,65 @@ if ($archive_columns_ready) {
         .role-former-secretary { background: #ede9fe; color: #5b21b6; }
         .empty-state { text-align: center; padding: 40px; color: var(--text-gray); }
         .error-box { background: #fee2e2; color: #991b1b; padding: 12px 16px; border-radius: 12px; margin-bottom: 16px; font-size: 14px; }
+
+        @media (max-width: 768px) {
+            .main-container { min-width: 0; }
+            .top-header { align-items: flex-start; }
+            .panel { padding: 14px; border-radius: 16px; overflow-x: visible; }
+
+            .archive-table,
+            .archive-table tbody,
+            .archive-table tr,
+            .archive-table td {
+                display: block;
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .archive-table thead { display: none; }
+            .archive-table tbody { display: flex; flex-direction: column; gap: 12px; }
+            .archive-table tr.data-row {
+                border: 1px solid #e2e8f0;
+                border-radius: 14px;
+                background: #ffffff;
+                overflow: hidden;
+            }
+            .archive-table td {
+                display: grid;
+                grid-template-columns: minmax(110px, 38%) 1fr;
+                gap: 12px;
+                align-items: center;
+                padding: 12px 14px;
+                border-bottom: 1px solid #f1f5f9;
+                font-size: 14px;
+                overflow-wrap: anywhere;
+            }
+            .archive-table tr.data-row td:last-child { border-bottom: none; }
+            .archive-table td::before {
+                content: attr(data-label);
+                color: #64748b;
+                font-size: 11px;
+                font-weight: 700;
+                text-transform: uppercase;
+            }
+            .archive-table tr.empty-row { display: block; }
+            .archive-table tr.empty-row td {
+                display: block;
+                padding: 0;
+                border: 0;
+            }
+            .archive-table tr.empty-row td::before { display: none; }
+            .role-badge { width: 100%; justify-content: center; box-sizing: border-box; }
+        }
+
+        @media (max-width: 480px) {
+            .archive-table td {
+                grid-template-columns: 1fr;
+                gap: 6px;
+                align-items: start;
+            }
+            .empty-state { padding: 32px 14px; }
+        }
     </style>
 </head>
 <body>
@@ -84,7 +144,7 @@ if ($archive_columns_ready) {
         <?php endif; ?>
 
         <div class="panel">
-            <table>
+            <table class="archive-table">
                 <thead>
                     <tr>
                         <th>Full Name</th>
@@ -121,26 +181,26 @@ if ($archive_columns_ready) {
                                     }
                                 }
                             ?>
-                            <tr>
-                                <td><strong><?php echo htmlspecialchars($full_name); ?></strong></td>
-                                <td><?php echo htmlspecialchars($row['username']); ?></td>
+                            <tr class="data-row">
+                                <td data-label="Full Name"><strong><?php echo htmlspecialchars($full_name); ?></strong></td>
+                                <td data-label="Username"><?php echo htmlspecialchars($row['username']); ?></td>
                                 <?php if ($email_col_exists): ?>
-                                    <td><?php echo htmlspecialchars($row['email'] ?? '---'); ?></td>
+                                    <td data-label="Email"><?php echo htmlspecialchars($row['email'] ?? '---'); ?></td>
                                 <?php endif; ?>
-                                <td>
+                                <td data-label="Status">
                                     <span class="role-badge <?php echo $badge_class; ?>">
                                         <i class="fa-solid fa-user-clock"></i>
                                         <?php echo htmlspecialchars($status_label); ?>
                                     </span>
                                 </td>
                                 <?php if ($term_start_col_exists || $term_end_col_exists): ?>
-                                    <td><?php echo htmlspecialchars($term_label); ?></td>
+                                    <td data-label="Term Date"><?php echo htmlspecialchars($term_label); ?></td>
                                 <?php endif; ?>
-                                <td><?php echo !empty($row['archived_at']) ? date('M d, Y', strtotime($row['archived_at'])) : '---'; ?></td>
+                                <td data-label="Archived On"><?php echo !empty($row['archived_at']) ? date('M d, Y', strtotime($row['archived_at'])) : '---'; ?></td>
                             </tr>
                         <?php endwhile; ?>
                     <?php else: ?>
-                        <tr>
+                        <tr class="empty-row">
                             <td colspan="<?php echo 4 + ($email_col_exists ? 1 : 0) + (($term_start_col_exists || $term_end_col_exists) ? 1 : 0); ?>">
                                 <div class="empty-state">No archived users found.</div>
                             </td>

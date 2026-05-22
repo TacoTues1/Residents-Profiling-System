@@ -407,7 +407,6 @@ if ($suggestion_query) {
             
         }
 
-        /* Adjusted width for dual column rows if needed */
         .col-span-2 { grid-column: span 2; }
 
         .benefits-section { 
@@ -655,8 +654,6 @@ if ($suggestion_query) {
             background: #ffffff;
             border-top: 1px solid var(--border-gray);
         }
-
-        /* Dark Mode Overrides */
         body.dark-mode .main-container { background-color: #0f172a; }
         body.dark-mode .content-panel { background: #0f172a; }
         body.dark-mode .section-header { border-bottom-color: #334155; }
@@ -708,6 +705,17 @@ if ($suggestion_query) {
                 align-items: flex-start;
                 flex-direction: column;
                 gap: 16px;
+            }
+
+            .member-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+            }
+
+            .member-actions {
+                width: 100%;
+                flex-direction: column;
             }
 
             .btn-add-member {

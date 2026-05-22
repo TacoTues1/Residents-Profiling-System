@@ -8,14 +8,28 @@ if(!isset($_SESSION['role']) || $_SESSION['role'] !== 'Barangay Captain') {
 }
 
 $where = ["COALESCE(is_archived, 0) = 0"];
+$category_options = [
+    'All' => 'All Categories',
+    'Senior Citizen' => 'Senior Citizen',
+    'Minor' => 'Minor',
+    'Voters' => 'Voters',
+    'Solo Parent' => 'Solo Parent',
+    '4ps' => '4ps',
+    'PWD' => 'PWD',
+];
+$selected_category = $_GET['category'] ?? 'All';
+if (!array_key_exists($selected_category, $category_options)) {
+    $selected_category = 'All';
+}
+$selected_category_label = $category_options[$selected_category];
 
 if (!empty($_GET['search'])) {
     $search = mysqli_real_escape_string($conn, $_GET['search']);
     $where[] = "(first_name LIKE '%$search%' OR last_name LIKE '%$search%' OR middle_name LIKE '%$search%' OR CONCAT(first_name, ' ', middle_name, ' ', last_name) LIKE '%$search%' OR household_no LIKE '%$search%')";
 }
 
-if (!empty($_GET['category']) && $_GET['category'] !== 'All') {
-    $cat = mysqli_real_escape_string($conn, $_GET['category']);
+if ($selected_category !== 'All') {
+    $cat = mysqli_real_escape_string($conn, $selected_category);
     if ($cat == 'Senior Citizen') $where[] = "is_senior = 1";
     elseif ($cat == 'Minor')      $where[] = "is_minor = 1";
     elseif ($cat == 'Voters')     $where[] = "is_voter = 1";
@@ -68,11 +82,80 @@ if ($act_query) {
         .search-input, .category-select { padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; max-width: 100%; box-sizing: border-box; }
         .search-input:focus { border-color: var(--accent-blue); }
 
+        .category-dropdown { position: relative; width: 220px; max-width: 100%; }
+        .category-trigger {
+            width: 100%;
+            min-height: 40px;
+            padding: 10px 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #ffffff;
+            color: #0f172a;
+            font: inherit;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            box-sizing: border-box;
+        }
+        .category-trigger:focus { border-color: var(--accent-blue); outline: none; }
+        .category-trigger i { color: #64748b; font-size: 12px; transition: transform 0.18s ease; }
+        .category-dropdown.open .category-trigger i { transform: rotate(180deg); }
+        .category-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            z-index: 20;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            box-shadow: 0 16px 32px rgba(15, 23, 42, 0.16);
+            overflow: hidden;
+        }
+        .category-dropdown.open .category-menu { display: block; }
+        .category-option {
+            width: 100%;
+            min-height: 38px;
+            padding: 9px 14px;
+            border: none;
+            background: #ffffff;
+            color: #0f172a;
+            font: inherit;
+            font-size: 14px;
+            text-align: left;
+            cursor: pointer;
+        }
+        .category-option:hover,
+        .category-option.active {
+            background: var(--accent-blue);
+            color: #ffffff;
+        }
+
         table { width: 100%; border-collapse: collapse; min-width: 650px; }
         th { text-align: left; padding: 14px 12px; border-bottom: 2px solid #e2e8f0; font-size: 12px; color: var(--text-gray); letter-spacing: 0.5px; }
         td { padding: 14px 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #334155; }
 
-        .status-pill { padding: 4px 10px; border-radius: 6px; background: #e8f5e9; color: #2e7d32; font-size: 12px; font-weight: 600; }
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 56px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: #e8f5e9;
+            color: #2e7d32;
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.2;
+            white-space: nowrap;
+            word-break: keep-all;
+            overflow-wrap: normal;
+            box-sizing: border-box;
+        }
         .status-archived { background: #fee2e2; color: #991b1b; }
 
         .action-link { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; text-decoration: none; color: var(--accent-blue); background: #eff6ff; }
@@ -88,10 +171,139 @@ if ($act_query) {
             white-space: nowrap;
         }
 
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .responsive-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        @media (min-width: 769px) {
+            .responsive-table th:nth-child(7),
+            .responsive-table td:nth-child(7) {
+                width: 88px;
+                min-width: 88px;
+            }
+            .responsive-table th:nth-child(8),
+            .responsive-table td:nth-child(8) {
+                width: 76px;
+                min-width: 76px;
+                text-align: center;
+            }
+        }
+        .cell-value { min-width: 0; color: #334155; overflow-wrap: anywhere; }
+        td[data-label="Status"] .cell-value,
+        td[data-label="Actions"] .cell-value {
+            white-space: nowrap;
+            overflow-wrap: normal;
+        }
+        .cell-value-wrap { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+
         @media (max-width: 1024px) {
             .controls { flex-direction: column; align-items: stretch; }
             .filter-form { flex-direction: column; align-items: stretch; width: 100%; }
-            .search-input, .category-select { width: 100% !important; box-sizing: border-box; }
+            .search-input, .category-select, .category-dropdown, .category-trigger { width: 100% !important; box-sizing: border-box; }
+            .category-menu {
+                position: static;
+                margin-top: 8px;
+                box-shadow: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            html,
+            body {
+                max-width: 100%;
+                overflow-x: hidden !important;
+            }
+            .main-container {
+                max-width: 100vw;
+                min-width: 0;
+                overflow-x: hidden !important;
+            }
+            .panel {
+                padding: 16px;
+                border-radius: 16px;
+                max-width: 100%;
+                overflow-x: hidden;
+                box-sizing: border-box;
+            }
+            .content-body {
+                padding: 12px 16px 24px !important;
+                max-width: 100%;
+                overflow-x: hidden;
+            }
+            .header {
+                padding: 16px !important;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            .table-responsive {
+                max-width: 100%;
+                overflow-x: hidden;
+            }
+            .responsive-table {
+                min-width: 0 !important;
+                max-width: 100%;
+                table-layout: fixed;
+            }
+            .responsive-table,
+            .responsive-table thead,
+            .responsive-table tbody,
+            .responsive-table tr,
+            .responsive-table td {
+                display: block;
+                width: 100%;
+                box-sizing: border-box;
+            }
+            .responsive-table thead { display: none; }
+            .responsive-table tr.data-row {
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-radius: 16px;
+                padding: 10px 12px;
+                margin-bottom: 12px;
+                box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+            }
+            .responsive-table td {
+                border: none;
+                padding: 8px 0;
+                display: grid;
+                grid-template-columns: minmax(120px, 40%) 1fr;
+                gap: 16px;
+                align-items: center;
+            }
+            .responsive-table td::before {
+                content: attr(data-label);
+                font-size: 11px;
+                font-weight: 700;
+                color: #94a3b8;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+            }
+            .responsive-table .cell-value {
+                text-align: right;
+                justify-self: end;
+            }
+            .activity-badge { white-space: normal; margin-bottom: 4px; }
+        }
+
+        @media (max-width: 480px) {
+            .responsive-table td {
+                grid-template-columns: 1fr;
+                gap: 5px;
+                align-items: start;
+            }
+            .responsive-table .cell-value {
+                justify-self: start;
+                text-align: left;
+            }
+            .cell-value-wrap {
+                justify-content: flex-start;
+            }
         }
     </style>
 </head>
@@ -113,19 +325,25 @@ if ($act_query) {
                 <form method="GET" class="filter-form">
                     <input type="text" id="residentSearch" name="search" class="search-input" placeholder="Search resident name or household no..." value="<?php echo htmlspecialchars($_GET['search'] ?? ''); ?>">
 
-                    <select name="category" class="category-select" onchange="this.form.submit()">
-                        <option value="All">All Categories</option>
-                        <option value="Senior Citizen" <?php echo ($_GET['category'] ?? '') == 'Senior Citizen' ? 'selected' : ''; ?>>Senior Citizen</option>
-                        <option value="Minor" <?php echo ($_GET['category'] ?? '') == 'Minor' ? 'selected' : ''; ?>>Minor</option>
-                        <option value="Voters" <?php echo ($_GET['category'] ?? '') == 'Voters' ? 'selected' : ''; ?>>Voters</option>
-                        <option value="Solo Parent" <?php echo ($_GET['category'] ?? '') == 'Solo Parent' ? 'selected' : ''; ?>>Solo Parent</option>
-                        <option value="4ps" <?php echo ($_GET['category'] ?? '') == '4ps' ? 'selected' : ''; ?>>4ps</option>
-                        <option value="PWD" <?php echo ($_GET['category'] ?? '') == 'PWD' ? 'selected' : ''; ?>>PWD</option>
-                    </select>
+                    <input type="hidden" name="category" value="<?php echo htmlspecialchars($selected_category); ?>" data-category-input>
+                    <div class="category-dropdown" data-category-dropdown>
+                        <button type="button" class="category-trigger" data-category-trigger aria-expanded="false">
+                            <span><?php echo htmlspecialchars($selected_category_label); ?></span>
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </button>
+                        <div class="category-menu" data-category-menu>
+                            <?php foreach ($category_options as $value => $label): ?>
+                                <button type="button" class="category-option <?php echo $selected_category === $value ? 'active' : ''; ?>" data-value="<?php echo htmlspecialchars($value); ?>">
+                                    <?php echo htmlspecialchars($label); ?>
+                                </button>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
                 </form>
             </div>
 
-            <table id="residentsTable">
+            <div class="table-responsive">
+            <table id="residentsTable" class="responsive-table">
                 <thead>
                     <tr>
                         <th>Resident Name</th>
@@ -146,25 +364,27 @@ if ($act_query) {
                             $row['included_activities'] = $activities;
                         ?>
                         <tr class="data-row" style="cursor: pointer;" onclick='openResidentModal(<?php echo json_encode($row); ?>)'>
-                            <td><strong><?php echo htmlspecialchars($row['last_name'] . ', ' . $row['first_name'] . ($row['middle_name'] ? ' ' . $row['middle_name'] : '')); ?></strong></td>
-                            <td><?php echo htmlspecialchars($row['household_no'] ?? 'N/A'); ?></td>
-                            <td><?php echo htmlspecialchars($row['age'] ?? 'N/A'); ?></td>
-                            <td><?php echo htmlspecialchars($row['gender'] ?? 'N/A'); ?></td>
-                            <td><?php echo htmlspecialchars($row['relationship'] ?? 'N/A'); ?></td>
-                            <td>
+                            <td data-label="Resident Name"><span class="cell-value"><strong><?php echo htmlspecialchars($row['last_name'] . ', ' . $row['first_name'] . ($row['middle_name'] ? ' ' . $row['middle_name'] : '')); ?></strong></span></td>
+                            <td data-label="Household No."><span class="cell-value"><?php echo htmlspecialchars($row['household_no'] ?? 'N/A'); ?></span></td>
+                            <td data-label="Age"><span class="cell-value"><?php echo htmlspecialchars($row['age'] ?? 'N/A'); ?></span></td>
+                            <td data-label="Gender"><span class="cell-value"><?php echo htmlspecialchars($row['gender'] ?? 'N/A'); ?></span></td>
+                            <td data-label="Relationship"><span class="cell-value"><?php echo htmlspecialchars($row['relationship'] ?? 'N/A'); ?></span></td>
+                            <td data-label="Activities">
+                                <div class="cell-value cell-value-wrap">
                                 <?php if (!empty($activities)): ?>
-                                    <div style="display:flex; gap:4px; flex-wrap:wrap;">
-                                        <?php foreach ($activities as $act): ?>
-                                            <span class="activity-badge"><?php echo htmlspecialchars($act); ?></span>
-                                        <?php endforeach; ?>
-                                    </div>
+                                    <?php foreach ($activities as $act): ?>
+                                        <span class="activity-badge"><?php echo htmlspecialchars($act); ?></span>
+                                    <?php endforeach; ?>
                                 <?php else: ?>
                                     <span style="color: var(--text-gray); font-size: 13px;">None</span>
                                 <?php endif; ?>
+                                </div>
                             </td>
-                            <td>
+                            <td data-label="Status">
+                                <span class="cell-value">
                                 <span class="status-pill <?php echo ($row['status'] ?? 'Active') !== 'Active' ? 'status-archived' : ''; ?>">
                                     <?php echo htmlspecialchars($row['status'] ?? 'Active'); ?>
+                                </span>
                                 </span>
                             </td>
                         </tr>
@@ -175,6 +395,7 @@ if ($act_query) {
                     </tr>
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
 </div>
@@ -183,6 +404,7 @@ if ($act_query) {
     // CONSISTENT SIDEBAR LOGIC
     document.addEventListener("DOMContentLoaded", function() {
         setupResidentSearch();
+        setupCategoryDropdowns();
     });
 
     // CONSISTENT LOGOUT DROPDOWN
@@ -230,6 +452,47 @@ if ($act_query) {
         });
 
         filterRows();
+    }
+
+    function setupCategoryDropdowns() {
+        const dropdowns = Array.from(document.querySelectorAll('[data-category-dropdown]'));
+
+        const closeDropdown = (dropdown) => {
+            dropdown.classList.remove('open');
+            const trigger = dropdown.querySelector('[data-category-trigger]');
+            if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        };
+
+        dropdowns.forEach((dropdown) => {
+            const trigger = dropdown.querySelector('[data-category-trigger]');
+            const input = dropdown.closest('form')?.querySelector('[data-category-input]');
+            if (!trigger || !input) return;
+
+            trigger.addEventListener('click', () => {
+                const shouldOpen = !dropdown.classList.contains('open');
+                dropdowns.forEach(closeDropdown);
+                dropdown.classList.toggle('open', shouldOpen);
+                trigger.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+            });
+
+            dropdown.querySelectorAll('[data-value]').forEach((option) => {
+                option.addEventListener('click', () => {
+                    input.value = option.dataset.value || 'All';
+                    option.closest('form').submit();
+                });
+            });
+        });
+
+        document.addEventListener('click', (event) => {
+            if (event.target.closest('[data-category-dropdown]')) return;
+            dropdowns.forEach(closeDropdown);
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                dropdowns.forEach(closeDropdown);
+            }
+        });
     }
 
     function openResidentModal(data) {

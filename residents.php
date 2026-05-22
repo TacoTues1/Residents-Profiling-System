@@ -118,6 +118,75 @@ $result = mysqli_query($conn, $query);
         .btn-add { background: var(--accent-blue); color: white; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
 
         .action-link { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; text-decoration: none; color: var(--accent-blue); background: #eff6ff; margin-right: 6px; }
+
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .responsive-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        @media (max-width: 1024px) {
+            .controls { flex-direction: column; align-items: stretch; gap: 16px; }
+            .controls form { width: 100%; display: flex !important; flex-direction: column; gap: 12px; }
+            .controls .search-input,
+            .controls .category-select,
+            .controls .btn-add { width: 100% !important; box-sizing: border-box; }
+        }
+
+        @media (max-width: 768px) {
+            .panel { padding: 16px; border-radius: 16px; }
+            .content-body { padding: 12px 16px 24px !important; }
+            .top-header {
+                padding: 16px !important;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 14px;
+            }
+            .table-responsive { overflow: visible; }
+            .responsive-table,
+            .responsive-table thead,
+            .responsive-table tbody,
+            .responsive-table tr,
+            .responsive-table td {
+                display: block;
+                width: 100%;
+                box-sizing: border-box;
+            }
+            .responsive-table thead { display: none; }
+            .responsive-table tr.data-row {
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-radius: 16px;
+                padding: 10px 12px;
+                margin-bottom: 12px;
+                box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+            }
+            .responsive-table td {
+                border: none;
+                padding: 8px 0;
+                display: flex;
+                justify-content: space-between;
+                gap: 16px;
+                align-items: flex-start;
+            }
+            .responsive-table td::before {
+                content: attr(data-label);
+                font-size: 11px;
+                font-weight: 700;
+                color: #94a3b8;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+                flex: 0 0 40%;
+                max-width: 40%;
+            }
+            .responsive-table td > * {
+                text-align: right;
+            }
+        }
     </style>
 </head>
 <body>
@@ -150,7 +219,8 @@ $result = mysqli_query($conn, $query);
                 <a href="add_household.php" class="btn-add"><i class="fa-solid fa-plus"></i> Add Household</a>
             </div>
 
-            <table id="householdTable">
+            <div class="table-responsive">
+            <table id="householdTable" class="responsive-table">
                 <thead>
                     <tr>
                         <th>Household No.</th>
@@ -166,18 +236,20 @@ $result = mysqli_query($conn, $query);
                     <?php if($has_rows): ?>
                         <?php while($row = mysqli_fetch_assoc($result)): ?>
                         <tr class="data-row">
-                            <td><strong><?php echo htmlspecialchars($row['household_no']); ?></strong></td>
-                            <td><?php echo htmlspecialchars($row['address'] ?? 'N/A'); ?></td>
-                            <td><?php echo htmlspecialchars($row['purok'] ?? 'N/A'); ?></td>
-                            <td><?php echo htmlspecialchars($row['head_of_family'] ?? 'No Head Assigned'); ?></td>
-                            <td><i class="fa-solid fa-user-group" style="color: var(--text-gray); margin-right: 5px;"></i> <?php echo htmlspecialchars($row['total_members']); ?></td>
-                            <td>
-                                <a href="household_members.php?household_no=<?php echo urlencode($row['household_no']); ?>" class="action-link" title="View Members">
-                                    <i class="fa-solid fa-eye"></i>
-                                </a>
-                                <a href="edit_household.php?household_no=<?php echo urlencode($row['household_no']); ?>" class="action-link" title="Edit Household">
-                                    <i class="fa-solid fa-pen-to-square"></i>
-                                </a>
+                            <td data-label="Household No."><strong><?php echo htmlspecialchars($row['household_no']); ?></strong></td>
+                            <td data-label="Address"><?php echo htmlspecialchars($row['address'] ?? 'N/A'); ?></td>
+                            <td data-label="Purok"><?php echo htmlspecialchars($row['purok'] ?? 'N/A'); ?></td>
+                            <td data-label="Head of the Household"><?php echo htmlspecialchars($row['head_of_family'] ?? 'No Head Assigned'); ?></td>
+                            <td data-label="Members"><i class="fa-solid fa-user-group" style="color: var(--text-gray); margin-right: 5px;"></i> <?php echo htmlspecialchars($row['total_members']); ?></td>
+                            <td data-label="Actions">
+                                <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                                    <a href="household_members.php?household_no=<?php echo urlencode($row['household_no']); ?>" class="action-link" style="margin: 0;" title="View Members">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </a>
+                                    <a href="edit_household.php?household_no=<?php echo urlencode($row['household_no']); ?>" class="action-link" style="margin: 0;" title="Edit Household">
+                                        <i class="fa-solid fa-pen-to-square"></i>
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                         <?php endwhile; ?>
@@ -187,6 +259,7 @@ $result = mysqli_query($conn, $query);
                     </tr>
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
 </div>

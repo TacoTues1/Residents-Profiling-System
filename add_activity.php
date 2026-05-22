@@ -151,11 +151,86 @@ $households_4ps = mysqli_query($conn, "SELECT household_no, GROUP_CONCAT(CONCAT(
         .user-profile-container { position: relative; }
         .user-pill { display: flex; align-items: center; background: #f8fafc; padding: 8px 15px; border-radius: 50px; border: 1px solid #e2e8f0; cursor: pointer; }
         .avatar { background: var(--accent-blue); color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-        .logout-dropdown { position: absolute; top: 110%; right: 0; background: white; border: 1px solid #e2e8f0; border-radius: 12px; width: 220px;  display: none; z-index: 100; overflow: hidden; }
+        .logout-dropdown { position: absolute; top: 110%; right: 0; background: white; border: 1px solid #e2e8f0; border-radius: 12px; width: 220px;  display: none; z-index: 100; overflow: visible; }
         .logout-dropdown.show { display: block; }
         .dropdown-header { padding: 15px; text-align: center; border-bottom: 1px solid #e5e7eb; color: #64748b; font-size: 14px; }
         .dropdown-header b { display: block; color: #1e293b; margin-top: 4px; font-size: 16px; }
         .logout-btn { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 20px; color: #ef4444; text-decoration: none; font-weight: 600; font-size: 16px; }
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+        }
+        .responsive-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        @media (max-width: 1024px) {
+            .form-grid { grid-template-columns: 1fr; }
+            .beneficiary-tools { flex-direction: column; align-items: stretch; gap: 12px; }
+            .search-input { width: 100% !important; box-sizing: border-box; }
+        }
+        @media (max-width: 768px) {
+            body { overflow: auto !important; height: auto !important; }
+            .main-container { min-height: 100vh; overflow: visible; }
+            .top-header { padding: 16px !important; flex-direction: column; gap: 14px; align-items: flex-start; }
+            .user-profile-container { width: 100%; }
+            .user-pill { width: 100%; box-sizing: border-box; }
+            .content-body { padding: 16px !important; }
+            .panel { padding: 16px; border-radius: 16px; }
+
+            .table-responsive { overflow: visible; }
+            .responsive-table,
+            .responsive-table thead,
+            .responsive-table tbody,
+            .responsive-table tr,
+            .responsive-table td {
+                display: block;
+                width: 100%;
+                box-sizing: border-box;
+            }
+            .responsive-table thead { display: none; }
+            .responsive-table tr {
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-radius: 16px;
+                padding: 10px 12px;
+                margin-bottom: 12px;
+                box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+            }
+            .responsive-table td {
+                border: none;
+                padding: 8px 0;
+                display: flex;
+                justify-content: space-between;
+                gap: 16px;
+                align-items: flex-start;
+            }
+            .responsive-table td::before {
+                content: attr(data-label);
+                font-size: 11px;
+                font-weight: 700;
+                color: #94a3b8;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+                flex: 0 0 40%;
+                max-width: 40%;
+            }
+            .responsive-table td > * {
+                text-align: right;
+            }
+            .btn-save { width: 100%; box-sizing: border-box; }
+            .logout-dropdown {
+                position: fixed;
+                left: 16px;
+                right: 16px;
+                top: 72px;
+                width: auto;
+                max-width: calc(100% - 32px);
+                border-radius: 12px;
+                z-index: 20000;
+                overflow: visible;
+            }
+        }
     </style>
 </head>
 <body>
@@ -225,8 +300,8 @@ $households_4ps = mysqli_query($conn, "SELECT household_no, GROUP_CONCAT(CONCAT(
                     </label>
                 </div>
 
-                <div id="residentTableContainer">
-                    <table id="beneficiaryTable">
+                <div id="residentTableContainer" class="table-responsive">
+                    <table id="beneficiaryTable" class="responsive-table">
                         <thead>
                             <tr>
                                 <th style="width: 40px;"></th>
@@ -241,11 +316,11 @@ $households_4ps = mysqli_query($conn, "SELECT household_no, GROUP_CONCAT(CONCAT(
                                         $full_name = $row['last_name'] . ', ' . $row['first_name'] . ($row['middle_name'] ? ' ' . $row['middle_name'] : '');
                                     ?>
                                     <tr class="data-row" data-is-4ps="<?php echo (int)$row['is_4ps']; ?>">
-                                        <td>
+                                        <td data-label="Include">
                                             <input type="checkbox" class="beneficiary-check" name="beneficiaries[]" value="<?php echo (int)$row['id']; ?>">
                                         </td>
-                                        <td><strong><?php echo htmlspecialchars($full_name); ?></strong></td>
-                                        <td><?php echo htmlspecialchars($row['household_no'] ?? 'N/A'); ?></td>
+                                        <td data-label="Resident"><strong><?php echo htmlspecialchars($full_name); ?></strong></td>
+                                        <td data-label="Household No."><?php echo htmlspecialchars($row['household_no'] ?? 'N/A'); ?></td>
                                     </tr>
                                 <?php endwhile; ?>
                             <?php else: ?>

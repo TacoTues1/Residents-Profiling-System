@@ -48,9 +48,9 @@ $user_role = $_SESSION['role'] ?? 'User';
         .dropdown-header b { display: block; color: #1e293b; margin-top: 4px; font-size: 16px; }
         .logout-btn { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 20px; color: #ef4444; text-decoration: none; font-weight: 600; font-size: 16px; }
         .content-body { padding: 16px 20px 20px; }
-        .panel { background: white; border: 1px solid #e5e7eb; padding: 18px; border-radius: 20px; border: 1px solid #e2e8f0; }
+        .panel { background: white; border: 1px solid #e5e7eb; padding: 18px; border-radius: 20px; border: 1px solid #e2e8f0; overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th { text-align: left; padding: 18px 15px; border-bottom: 2px solid #e5e7eb; color: var(--text-gray); font-size: 12px; text- letter-spacing: 0.05em; }
+        th { text-align: left; padding: 18px 15px; border-bottom: 2px solid #e5e7eb; color: var(--text-gray); font-size: 12px; }
         td { padding: 18px 15px; border-bottom: 1px solid #e5e7eb; font-size: 14px; color: #334155; }
         .badge { padding: 4px 10px; border-radius: 16px; font-size: 12px; font-weight: 600; background: #f1f5f9; color: var(--text-gray); display: inline-flex; align-items: center; gap: 5px; }
         .badge-success { background: #dcfce7; color: #166534; }
@@ -72,6 +72,81 @@ $user_role = $_SESSION['role'] ?? 'User';
         .status-badge { background: #e8f5e9; color: #2e7d32; padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 600; }
         .pending { background: #fee2e2; color: #991b1b; }
         .modal-empty { text-align: center; color: var(--text-gray); padding: 16px; font-size: 14px; }
+
+        @media (max-width: 768px) {
+            .main-container { min-width: 0; }
+            .top-header { align-items: flex-start; }
+            .panel { padding: 14px; border-radius: 16px; overflow-x: visible; }
+
+            .archive-table,
+            .archive-table tbody,
+            .archive-table tr,
+            .archive-table td {
+                display: block;
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .archive-table { margin-top: 0; }
+            .archive-table thead { display: none; }
+            .archive-table tbody { display: flex; flex-direction: column; gap: 12px; }
+            .archive-table tr.data-row {
+                border: 1px solid #e2e8f0;
+                border-radius: 14px;
+                background: #ffffff;
+                overflow: hidden;
+            }
+            .archive-table td {
+                display: grid;
+                grid-template-columns: minmax(110px, 38%) 1fr;
+                gap: 12px;
+                align-items: center;
+                padding: 12px 14px;
+                border-bottom: 1px solid #f1f5f9;
+                font-size: 14px;
+                overflow-wrap: anywhere;
+            }
+            .archive-table tr.data-row td:last-child { border-bottom: none; }
+            .archive-table td::before {
+                content: attr(data-label);
+                color: #64748b;
+                font-size: 11px;
+                font-weight: 700;
+                text-transform: uppercase;
+            }
+            .archive-table tr.empty-row { display: block; }
+            .archive-table tr.empty-row td {
+                display: block;
+                padding: 0;
+                border: 0;
+            }
+            .archive-table tr.empty-row td::before { display: none; }
+            .action-link {
+                width: 100%;
+                justify-content: center;
+                margin-right: 0;
+                box-sizing: border-box;
+                padding: 10px 12px;
+                border-radius: 12px;
+                background: #eff6ff;
+            }
+            .modal-content {
+                width: calc(100vw - 32px);
+                max-height: calc(100vh - 120px);
+                border-radius: 18px;
+            }
+            .modal-header { padding: 18px; align-items: flex-start; gap: 12px; }
+            .modal-body { padding: 18px; overflow-x: auto; }
+            .modal-table { min-width: 520px; }
+        }
+
+        @media (max-width: 480px) {
+            .archive-table td {
+                grid-template-columns: 1fr;
+                gap: 6px;
+                align-items: start;
+            }
+        }
     </style>
 </head>
 <body>
@@ -106,7 +181,7 @@ $user_role = $_SESSION['role'] ?? 'User';
 
     <div class="content-body">
         <div class="panel">
-            <table>
+            <table class="archive-table">
                 <thead>
                     <tr>
                         <th>Activity Details</th>
@@ -119,13 +194,13 @@ $user_role = $_SESSION['role'] ?? 'User';
                 <tbody>
                     <?php if(mysqli_num_rows($result) > 0): ?>
                         <?php while($row = mysqli_fetch_assoc($result)): ?>
-                        <tr style="cursor: pointer;" onclick="openActivityModal(<?php echo $row['id']; ?>, '<?php echo htmlspecialchars(addslashes($row['activity_name'] ?? $row['title'] ?? 'N/A')); ?>')">
-                            <td>
+                        <tr class="data-row" style="cursor: pointer;" onclick="openActivityModal(<?php echo $row['id']; ?>, '<?php echo htmlspecialchars(addslashes($row['activity_name'] ?? $row['title'] ?? 'N/A')); ?>')">
+                            <td data-label="Activity Details">
                                 <strong style="display:block; color: #1e293b;"><?php echo htmlspecialchars($row['activity_name'] ?? $row['title'] ?? 'N/A'); ?></strong>
                                 <small style="color: var(--text-gray);"><?php echo htmlspecialchars($row['description'] ?? 'No description provided'); ?></small>
                             </td>
                             
-                            <td>
+                            <td data-label="Date">
                                 <span style="display:inline-flex; align-items:center; gap:5px;">
                                     <i class="fa-regular fa-calendar" style="color: var(--accent-blue);"></i>
                                     <?php 
@@ -135,20 +210,20 @@ $user_role = $_SESSION['role'] ?? 'User';
                                 </span>
                             </td>
 
-                            <td>
+                            <td data-label="Archived On">
                                 <span class="badge badge-muted">
                                     <i class="fa-solid fa-box-archive"></i>
                                     <?php echo !empty($row['archived_at']) ? date('M d, Y', strtotime($row['archived_at'])) : '---'; ?>
                                 </span>
                             </td>
 
-                            <td>
+                            <td data-label="Beneficiaries">
                                 <span class="badge <?php echo ($row['beneficiary_count'] > 0) ? 'badge-success' : ''; ?>">
                                     <i class="fa-solid fa-people-group"></i> <?php echo $row['beneficiary_count']; ?> Given
                                 </span>
                             </td>
                             
-                            <td>
+                            <td data-label="Actions">
                                 <a href="#" class="action-link link-blue" onclick="event.stopPropagation(); openActivityModal(<?php echo $row['id']; ?>, '<?php echo htmlspecialchars(addslashes($row['activity_name'] ?? $row['title'] ?? 'N/A')); ?>');">
                                     <i class="fa-solid fa-eye"></i> View Members
                                 </a>
@@ -156,7 +231,7 @@ $user_role = $_SESSION['role'] ?? 'User';
                         </tr>
                         <?php endwhile; ?>
                     <?php else: ?>
-                        <tr>
+                        <tr class="empty-row">
                             <td colspan="5" style="text-align:center; padding: 50px; color: var(--text-gray);">No archived activities found.</td>
                         </tr>
                     <?php endif; ?>

@@ -146,11 +146,10 @@ if (isset($_GET['ajax_fetch_stats'])) {
         body { font-family: 'Inter', sans-serif; margin: 0; display: flex; background: var(--primary-bg); height: 100vh; overflow: hidden; }
 
         .main-container { flex: 1; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box; width: 100%; position: relative; height: 100vh; }
-        
-        /* The Dark Hero Header */
+
         .top-header {
             background: var(--hero-bg);
-            padding: 40px 40px 110px 40px; /* Big bottom padding for overlap */
+            padding: 40px 40px 110px 40px; 
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -166,7 +165,7 @@ if (isset($_GET['ajax_fetch_stats'])) {
         
         .content-body { 
             padding: 0 40px 40px 40px; 
-            margin-top: -65px; /* Pulls it up over the header */ 
+            margin-top: -65px;
             z-index: 10; 
             position: relative; 
             max-width: 1400px; 
@@ -181,7 +180,7 @@ if (isset($_GET['ajax_fetch_stats'])) {
         
         .dashboard-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(280px, 0.75fr);
             gap: 24px;
             margin-bottom: 0;
             align-items: stretch;
@@ -195,13 +194,14 @@ if (isset($_GET['ajax_fetch_stats'])) {
             gap: 24px;
             height: 100%;
             min-height: 0;
+            min-width: 0;
         }
         
         .stat-card { 
             background: var(--card-bg); 
             padding: 24px 32px; 
             border-radius: 24px; 
-            box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.08); /* Premium soft shadow, solid color */
+            box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.08);
             position: relative; 
             border: 1px solid rgba(255, 255, 255, 0.8);
             flex-shrink: 0;
@@ -235,6 +235,7 @@ if (isset($_GET['ajax_fetch_stats'])) {
             flex: 1;
             min-height: 0;
             overflow: hidden;
+            min-width: 0;
         }
         .panel h3 { font-size: 18px; font-weight: 700; margin: 0 0 6px 0; color: var(--text-main); }
         .panel > p { color: var(--text-muted); font-size: 14px; margin: 0 0 24px 0; flex-shrink: 0; }
@@ -258,7 +259,8 @@ if (isset($_GET['ajax_fetch_stats'])) {
         }
  
         .activity-list {
-            overflow: hidden;
+            overflow-y: auto;
+            overflow-x: hidden;
             flex: 1;
             padding-right: 8px;
             padding-left: 10px;
@@ -293,11 +295,11 @@ if (isset($_GET['ajax_fetch_stats'])) {
             padding-bottom: 4px; 
             padding-top: 4px;
             position: relative; 
-            flex: 1;
+            flex: 0 0 auto;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
-            min-height: 0;
+            min-height: auto;
         }
         .activity-item:last-child { border-left-color: transparent; padding-bottom: 4px; }
         
@@ -313,7 +315,7 @@ if (isset($_GET['ajax_fetch_stats'])) {
             border: 2px solid var(--card-bg); /* Cutout effect */
         }
         
-        .activity-title { font-weight: 600; color: var(--text-main); font-size: 15px; margin-bottom: 4px; line-height: 1.35; }
+        .activity-title { font-weight: 600; color: var(--text-main); font-size: 15px; margin-bottom: 4px; line-height: 1.35; overflow-wrap: anywhere; word-break: break-word; }
         .activity-time { color: var(--text-muted); font-size: 13px; font-weight: 500; }
 
         .filter-select { 
@@ -461,7 +463,7 @@ if (isset($_GET['ajax_fetch_stats'])) {
             display: block;
         }
 
-        @media (max-width: 1200px) {
+        @media (max-width: 1360px) {
             body { height: auto !important; overflow: auto !important; }
             .main-container { height: auto !important; overflow: visible !important; }
             .content-body { height: auto !important; overflow: visible !important; display: block !important; }
@@ -834,7 +836,6 @@ if (isset($_GET['ajax_fetch_stats'])) {
         }
     }
 
-    // Close dropdowns when clicking outside
     window.addEventListener('click', (e) => {
         if (!e.target.closest('.custom-multiselect')) {
             document.querySelectorAll('.custom-multiselect').forEach(m => m.classList.remove('active'));
@@ -848,20 +849,17 @@ if (isset($_GET['ajax_fetch_stats'])) {
         fetch(`secretary_dashboard.php?ajax_fetch_stats=1&category=${category}&household_purok=${purok}`)
             .then(res => res.json())
             .then(data => {
-                // Update counters
                 const resCounter = document.querySelector('.counter[data-target="<?php echo $total_res; ?>"]');
                 const houseCounter = document.querySelector('.counter[data-target="<?php echo $total_house; ?>"]');
                 
                 if (resCounter) animateCounter(resCounter, data.total_res);
                 if (houseCounter) animateCounter(houseCounter, data.total_house);
-                
-                // Update labels
+
                 const filterLabel = document.getElementById('categoryFilterLabel');
                 if (filterLabel) {
                     filterLabel.innerText = data.filter_text;
                 }
 
-                // Update Population Chart
                 if (populationChart) {
                     const newPopData = getActiveData(populationLabels, data.population_counts, popColorMap);
                     populationChart.data.labels = newPopData.labels;
@@ -869,8 +867,7 @@ if (isset($_GET['ajax_fetch_stats'])) {
                     populationChart.data.datasets[0].backgroundColor = newPopData.colors;
                     populationChart.update();
                 }
-                
-                // Update Purok Chart
+
                 if (purokChart) {
                     if (data.purok_counts.length > 0) {
                         const newPurData = getActiveData(data.purok_labels, data.purok_counts, purokColorMap, '#0ea5e9');
@@ -878,8 +875,7 @@ if (isset($_GET['ajax_fetch_stats'])) {
                         purokChart.data.datasets[0].data = newPurData.counts;
                         purokChart.data.datasets[0].backgroundColor = newPurData.colors;
                         purokChart.update();
-                        
-                        // Ensure chart is visible if it was empty
+
                         const wrap = document.getElementById('purokPieChart').parentElement;
                         if (wrap.querySelector('.empty-chart-text')) {
                             wrap.querySelector('.empty-chart-text').remove();
@@ -892,11 +888,10 @@ if (isset($_GET['ajax_fetch_stats'])) {
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        // Update trigger texts based on PHP initial checks
+
         updateTriggerText('category');
         updateTriggerText('purok');
 
-        // Initial counter animation
         const counters = document.querySelectorAll('.counter');
         counters.forEach(counter => {
             const target = parseInt(counter.getAttribute('data-target'), 10) || 0;
@@ -904,13 +899,23 @@ if (isset($_GET['ajax_fetch_stats'])) {
         });
         
         initCharts();
+
+        const dashboardGrid = document.querySelector('.dashboard-grid');
+        if (dashboardGrid && window.ResizeObserver) {
+            const resizeCharts = () => {
+                if (populationChart) populationChart.resize();
+                if (purokChart) purokChart.resize();
+            };
+            const observer = new ResizeObserver(() => {
+                window.requestAnimationFrame(resizeCharts);
+            });
+            observer.observe(dashboardGrid);
+        }
     });
 </script>
 
 </body>
 </html>
-
-
 
 
 

@@ -39,8 +39,6 @@ if ($all_members_query) {
     <style>
         :root { --accent-blue: #2563eb; --light-bg: #f1f5f9; }
         body { font-family: 'Inter', sans-serif; margin: 0; display: flex; background: var(--light-bg); height: 100vh; overflow: hidden; }
-        
-        /* Main Content */
         .main-container { flex: 1; overflow-y: auto; display: flex; flex-direction: column; box-sizing: border-box; width: 100%; }
 
         .content-card { background: white; border-radius: 12px; padding: 24px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow-x: auto; width: 100%; box-sizing: border-box; }
@@ -57,10 +55,71 @@ if ($all_members_query) {
         .status-active { background: #22c55e; color: white; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
         .view-btn { color: #64748b; cursor: pointer; font-size: 16px; }
 
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .responsive-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
         @media (max-width: 1024px) {
             .table-controls { flex-direction: column; align-items: stretch; }
             .filter-group { flex-direction: column; align-items: stretch; width: 100%; }
             .search-bar, .category-select { width: 100% !important; }
+        }
+
+        @media (max-width: 768px) {
+            .content-card { padding: 16px; border-radius: 16px; }
+            .content-body { padding: 12px 16px 24px !important; }
+            .header {
+                padding: 16px !important;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            .table-responsive { overflow: visible; }
+            .responsive-table,
+            .responsive-table thead,
+            .responsive-table tbody,
+            .responsive-table tr,
+            .responsive-table td {
+                display: block;
+                width: 100%;
+                box-sizing: border-box;
+            }
+            .responsive-table thead { display: none; }
+            .responsive-table tr.data-row {
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-radius: 16px;
+                padding: 10px 12px;
+                margin-bottom: 12px;
+                box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+            }
+            .responsive-table td {
+                border: none;
+                padding: 8px 0;
+                display: flex;
+                justify-content: space-between;
+                gap: 16px;
+                align-items: flex-start;
+            }
+            .responsive-table td::before {
+                content: attr(data-label);
+                font-size: 11px;
+                font-weight: 700;
+                color: #94a3b8;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+                flex: 0 0 40%;
+                max-width: 40%;
+            }
+            .responsive-table td > * {
+                text-align: right;
+            }
         }
     </style>
 </head>
@@ -96,7 +155,8 @@ if ($all_members_query) {
                 </div>
             </div>
             
-            <table id="householdsTable">
+            <div class="table-responsive">
+            <table id="householdsTable" class="responsive-table">
                 <thead>
                     <tr>
                         <th>Household No.</th>
@@ -112,12 +172,12 @@ if ($all_members_query) {
                     <?php if ($has_rows): ?>
                         <?php while($row = mysqli_fetch_assoc($result)): ?>
                         <tr class="data-row" style="cursor:pointer;" onclick='openHouseholdModal(<?php echo json_encode($row); ?>, <?php echo json_encode($hh_members_map[$row['household_no']] ?? []); ?>)'>
-                            <td><strong><?php echo htmlspecialchars($row['household_no']); ?></strong></td>
-                            <td><?php echo htmlspecialchars($row['address']); ?></td>
-                            <td><?php echo htmlspecialchars($row['purok']); ?></td>
-                            <td><?php echo htmlspecialchars($row['head_name'] ?? 'N/A'); ?></td>
-                            <td><?php echo htmlspecialchars($row['member_count']); ?></td>
-                            <td><span class="view-btn"><i class="fa-regular fa-eye"></i></span></td>
+                            <td data-label="Household No."><strong><?php echo htmlspecialchars($row['household_no']); ?></strong></td>
+                            <td data-label="Address"><?php echo htmlspecialchars($row['address']); ?></td>
+                            <td data-label="Purok"><?php echo htmlspecialchars($row['purok']); ?></td>
+                            <td data-label="Head of the Household"><?php echo htmlspecialchars($row['head_name'] ?? 'N/A'); ?></td>
+                            <td data-label="Members"><?php echo htmlspecialchars($row['member_count']); ?></td>
+                            <td data-label="Actions"><span class="view-btn"><i class="fa-regular fa-eye"></i></span></td>
                         </tr>
                         <?php endwhile; ?>
                     <?php endif; ?>
@@ -126,6 +186,7 @@ if ($all_members_query) {
                     </tr>
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
 </div>

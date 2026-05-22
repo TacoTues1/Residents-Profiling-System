@@ -100,8 +100,6 @@ function left_nav_active($current, $pages) {
     body.preload-transitions * {
         transition: none !important;
     }
-
-    /* Unified Layout & Flat Corporate Admin Look */
     header.top-header, header.header, .top-header, .header {
         background: transparent !important;
         padding: 20px 40px 10px 40px !important;
@@ -144,8 +142,6 @@ function left_nav_active($current, $pages) {
         position: relative !important;
         z-index: 1 !important;
     }
-    
-    /* Dark Mode Overrides for Unified Layout */
     body.dark-mode header.top-header, 
     body.dark-mode header.header, 
     body.dark-mode .top-header, 
@@ -719,7 +715,6 @@ function left_nav_active($current, $pages) {
         margin-left: 8px !important;
     }
 
-    /* --- DARK MODE GLOBAL STYLES --- */
     body.dark-mode {
         background: #0f172a !important;
         color: #f8fafc !important;
@@ -856,11 +851,17 @@ function left_nav_active($current, $pages) {
             width: 100% !important;
             min-width: 100% !important;
             height: auto !important;
-            position: static !important;
+            max-height: 100vh !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
             margin: 0 !important;
             border-radius: 0 !important;
-            box-shadow: none !important;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12) !important;
             border-bottom: 1px solid #e2e8f0 !important;
+            overflow-y: auto !important;
+            z-index: 9999 !important;
         }
         body.dark-mode .sidebar {
             border-bottom: 1px solid #334155 !important;
@@ -879,6 +880,13 @@ function left_nav_active($current, $pages) {
             pointer-events: auto !important;
             display: flex !important;
         }
+        .sidebar.collapsed .brand-text {
+            display: block !important;
+            opacity: 1 !important;
+            width: auto !important;
+            max-width: calc(100vw - 140px) !important;
+            margin-left: 12px !important;
+        }
         .sidebar.collapsed .sidebar-header {
             justify-content: flex-start !important;
             padding: 12px 20px !important;
@@ -890,6 +898,111 @@ function left_nav_active($current, $pages) {
             top: 24px !important;
             transform: none !important;
             font-size: 26px !important;
+        }
+        .sidebar-logout-dropdown {
+            position: static !important;
+            left: auto !important;
+            right: auto !important;
+            bottom: auto !important;
+            width: 100% !important;
+            margin: 8px 0 0 !important;
+            border-radius: 14px !important;
+            overflow: hidden !important;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12) !important;
+        }
+        #sidebarLogoutDropdown .sidebar-dropdown-header {
+            padding: 14px 12px !important;
+        }
+        #sidebarLogoutDropdown .sidebar-dropdown-link {
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+            width: 100% !important;
+            min-height: 44px !important;
+            padding: 12px 14px !important;
+            box-sizing: border-box !important;
+        }
+        #sidebarLogoutDropdown .sidebar-dropdown-link.has-submenu {
+            flex-wrap: wrap !important;
+            position: relative !important;
+            white-space: normal !important;
+        }
+        #sidebarLogoutDropdown .sidebar-dropdown-link.has-submenu > i:first-child {
+            margin: 0 !important;
+            width: 16px !important;
+            min-width: 16px !important;
+            text-align: center !important;
+        }
+        #sidebarLogoutDropdown .sidebar-dropdown-link.has-submenu .submenu-arrow {
+            display: inline-flex !important;
+            margin-left: auto !important;
+            transition: transform 0.18s ease !important;
+        }
+        #sidebarLogoutDropdown .sidebar-dropdown-link.has-submenu.open .submenu-arrow {
+            transform: rotate(90deg) !important;
+        }
+        #sidebarLogoutDropdown .sidebar-submenu {
+            position: static !important;
+            flex-basis: calc(100% + 28px) !important;
+            width: calc(100% + 28px) !important;
+            margin: 12px -14px -12px !important;
+            padding: 0 !important;
+            border: 0 !important;
+            border-top: 1px solid #e5e7eb !important;
+            border-radius: 0 !important;
+            background: #f8fafc !important;
+            box-shadow: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            transform: none !important;
+            display: none !important;
+        }
+        #sidebarLogoutDropdown .sidebar-dropdown-link.has-submenu.open .sidebar-submenu {
+            display: flex !important;
+            flex-direction: column !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
+        #sidebarLogoutDropdown .submenu-item {
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+            width: 100% !important;
+            padding: 12px 14px 12px 42px !important;
+            border-top: 1px solid #eef2f6 !important;
+            border-radius: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            box-sizing: border-box !important;
+        }
+        #sidebarLogoutDropdown .submenu-item:first-child {
+            border-top: 0 !important;
+        }
+        #sidebarLogoutDropdown .sidebar-logout-btn {
+            min-height: 44px !important;
+        }
+        body.dark-mode #sidebarLogoutDropdown.sidebar-logout-dropdown {
+            background: #1e293b !important;
+            border-color: #334155 !important;
+        }
+        body.dark-mode #sidebarLogoutDropdown .sidebar-dropdown-header {
+            border-bottom-color: #334155 !important;
+            color: #94a3b8 !important;
+        }
+        body.dark-mode #sidebarLogoutDropdown .sidebar-dropdown-header b {
+            color: #f8fafc !important;
+        }
+        body.dark-mode #sidebarLogoutDropdown .sidebar-dropdown-link {
+            color: #cbd5e1 !important;
+            border-bottom-color: #334155 !important;
+        }
+        body.dark-mode #sidebarLogoutDropdown .sidebar-submenu {
+            background: #0f172a !important;
+            border-top-color: #334155 !important;
+        }
+        body.dark-mode #sidebarLogoutDropdown .submenu-item {
+            color: #cbd5e1 !important;
+            border-top-color: #334155 !important;
         }
         .sidebar.collapsed .toggle-icon {
             right: 20px !important;
@@ -910,6 +1023,7 @@ function left_nav_active($current, $pages) {
         .main-container {
             width: 100% !important;
             overflow-y: visible !important;
+            margin-top: 70px !important;
             padding-bottom: 40px !important;
         }
         header.top-header, header.header, .top-header, .header {
@@ -932,12 +1046,39 @@ function left_nav_active($current, $pages) {
 <script>
     document.body.classList.add('preload-transitions');
 </script>
+<script>
+(function(){
+    function initLogoutSubmenuToggles(){
+        const mq = window.matchMedia('(max-width: 768px)');
+        const setup = function(){
+            const container = document.getElementById('sidebarLogoutDropdown');
+            if (!container) return;
+            const links = container.querySelectorAll('.sidebar-dropdown-link.has-submenu');
+            links.forEach(link => {
+                const newLink = link.cloneNode(true);
+                link.parentNode.replaceChild(newLink, link);
+            });
+            const freshLinks = container.querySelectorAll('.sidebar-dropdown-link.has-submenu');
+            freshLinks.forEach(link => {
+                link.classList.remove('open');
+                link.addEventListener('click', function(e){
+                    if (e.target.closest('.sidebar-submenu')) return;
+                    this.classList.toggle('open');
+                });
+            });
+        };
+        if (mq.matches) setup();
+        mq.addEventListener && mq.addEventListener('change', (ev)=>{ if (ev.matches) setup(); });
+    }
+    document.addEventListener('DOMContentLoaded', initLogoutSubmenuToggles);
+})();
+</script>
 
 <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="brand-group" id="brandGroup">
             <img src="logo/logopulantubig.png" class="logo" alt="Barangay Logo" style="cursor: pointer;" onclick="if(document.getElementById('sidebar').classList.contains('collapsed')) toggleSidebar()"> 
-            <div class="brand-text"><b>Barangay Pulantubig</b><span>Residents Profiling System</span></div>
+            <div class="brand-text" style="cursor: pointer;" onclick="if(document.getElementById('sidebar').classList.contains('collapsed')) toggleSidebar()"><b>Barangay Pulantubig</b><span>Residents Profiling System</span></div>
         </div>
         <i class="fa-solid fa-chevron-left toggle-icon" id="toggleBtn" onclick="toggleSidebar()"></i>
     </div>
@@ -1009,12 +1150,27 @@ function left_nav_active($current, $pages) {
 </div>
 
 <script>
+    const mobileToggleQuery = window.matchMedia('(max-width: 768px)');
+
+    function syncToggleIcon(icon, isCollapsed) {
+        if (!icon) return;
+
+        icon.classList.remove('fa-chevron-left', 'fa-chevron-right', 'fa-bars', 'fa-times');
+
+        if (mobileToggleQuery.matches) {
+            icon.classList.add(isCollapsed ? 'fa-bars' : 'fa-times');
+            return;
+        }
+
+        icon.classList.add(isCollapsed ? 'fa-chevron-right' : 'fa-chevron-left');
+    }
+
     if (localStorage.getItem('sidebar-collapsed') === 'true') {
         document.getElementById('sidebar').classList.add('collapsed');
         document.body.classList.add('sidebar-is-collapsed');
         const toggleBtn = document.getElementById('toggleBtn');
         if (toggleBtn) {
-            toggleBtn.classList.replace('fa-chevron-left', 'fa-chevron-right');
+            syncToggleIcon(toggleBtn, true);
         }
     }
 
@@ -1040,13 +1196,11 @@ function left_nav_active($current, $pages) {
         document.body.classList.toggle('sidebar-is-collapsed');
         closeSidebarAccountDropdown();
 
+        syncToggleIcon(icon, sidebar.classList.contains('collapsed'));
+
         if (sidebar.classList.contains('collapsed')) {
-            icon.classList.remove('fa-chevron-left');
-            icon.classList.add('fa-chevron-right');
             localStorage.setItem('sidebar-collapsed', 'true');
         } else {
-            icon.classList.remove('fa-chevron-right');
-            icon.classList.add('fa-chevron-left');
             localStorage.setItem('sidebar-collapsed', 'false');
         }
     };
@@ -1059,11 +1213,18 @@ function left_nav_active($current, $pages) {
         if (localStorage.getItem('sidebar-collapsed') === 'true') {
             document.body.classList.add('sidebar-is-collapsed');
             sidebar.classList.add('collapsed');
-            icon.classList.remove('fa-chevron-left');
-            icon.classList.add('fa-chevron-right');
-        } else {
-            icon.classList.remove('fa-chevron-right');
-            icon.classList.add('fa-chevron-left');
+        }
+
+        syncToggleIcon(icon, sidebar.classList.contains('collapsed'));
+
+        if (mobileToggleQuery.addEventListener) {
+            mobileToggleQuery.addEventListener('change', () => {
+                syncToggleIcon(icon, sidebar.classList.contains('collapsed'));
+            });
+        } else if (mobileToggleQuery.addListener) {
+            mobileToggleQuery.addListener(() => {
+                syncToggleIcon(icon, sidebar.classList.contains('collapsed'));
+            });
         }
 
         setTimeout(() => {

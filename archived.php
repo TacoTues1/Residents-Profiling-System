@@ -3,7 +3,6 @@ include('db.php');
 include_once('toast_helpers.php');
 session_start();
 
-// Security check: Only Secretary role
 if(!isset($_SESSION['role']) || $_SESSION['role'] !== 'Secretary') {
     header("Location: login.php");
     exit();
@@ -264,11 +263,3 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['confirm_archive'])) {
 
 </body>
 </html>
-
-
-
-
-
-
-
-

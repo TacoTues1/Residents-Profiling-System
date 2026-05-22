@@ -37,7 +37,6 @@ $member_has_photo = $member_photo_path !== '' && $member_photo_path !== 'uploads
 $today = date('Y-m-d');
 $cancel_url = 'household_members.php?household_no=' . urlencode($member['household_no']);
 
-// UPDATE LOGIC
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $photo_update_sql = "";
     $proof_update_sql = "";
@@ -505,6 +504,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 align-items: flex-start;
                 flex-direction: column;
                 gap: 16px;
+            }
+
+            .member-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+            }
+
+            .member-actions {
+                width: 100%;
+                flex-direction: column;
             }
 
             .layout-grid,

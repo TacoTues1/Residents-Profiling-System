@@ -360,7 +360,7 @@ if (isset($_GET['ajax_fetch_stats'])) {
         
         .dashboard-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(280px, 0.75fr);
             gap: 24px;
             margin-bottom: 0;
             align-items: stretch;
@@ -374,13 +374,14 @@ if (isset($_GET['ajax_fetch_stats'])) {
             gap: 24px;
             height: 100%;
             min-height: 0;
+            min-width: 0;
         }
         
         .stat-card { 
             background: var(--card-bg); 
             padding: 24px 32px; 
             border-radius: 24px; 
-            box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.08); /* Premium soft shadow, solid color */
+            box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.08);
             position: relative; 
             border: 1px solid rgba(255, 255, 255, 0.8);
             flex-shrink: 0;
@@ -415,6 +416,7 @@ if (isset($_GET['ajax_fetch_stats'])) {
             flex: 1;
             min-height: 0;
             overflow: hidden;
+            min-width: 0;
         }
         .panel h3 { font-size: 18px; font-weight: 700; margin: 0 0 6px 0; color: var(--text-main); }
         .panel > p { color: var(--text-muted); font-size: 14px; margin: 0 0 24px 0; flex-shrink: 0; }
@@ -438,7 +440,8 @@ if (isset($_GET['ajax_fetch_stats'])) {
         }
 
         .activity-list {
-            overflow: hidden;
+            overflow-y: auto;
+            overflow-x: hidden;
             flex: 1;
             padding-right: 8px;
             padding-left: 10px;
@@ -473,11 +476,11 @@ if (isset($_GET['ajax_fetch_stats'])) {
             padding-bottom: 4px; 
             padding-top: 4px;
             position: relative; 
-            flex: 1;
+            flex: 0 0 auto;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
-            min-height: 0;
+            min-height: auto;
         }
         .activity-item:last-child { border-left-color: transparent; padding-bottom: 4px; }
         .activity-item::before { 
@@ -491,13 +494,11 @@ if (isset($_GET['ajax_fetch_stats'])) {
             border-radius: 50%; 
             border: 2px solid var(--card-bg); 
         }
-        .activity-title { font-weight: 600; color: var(--text-main); font-size: 15px; margin-bottom: 4px; line-height: 1.35; }
+        .activity-title { font-weight: 600; color: var(--text-main); font-size: 15px; margin-bottom: 4px; line-height: 1.35; overflow-wrap: anywhere; word-break: break-word; }
         .activity-time { color: var(--text-muted); font-size: 13px; font-weight: 500; }
         
         .filter-select { padding: 10px 16px; border-radius: 12px; border: 1px solid #e2e8f0; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--text-main); outline: none; background: var(--primary-bg); cursor: pointer; }
         .filter-select:focus { border-color: var(--accent-color); }
-
-        /* Premium Custom Multi-Select Checkbox Dropdown Widget */
         .custom-multiselect {
             position: relative;
             width: 200px;
@@ -628,7 +629,7 @@ if (isset($_GET['ajax_fetch_stats'])) {
             display: block;
         }
 
-        @media (max-width: 1200px) {
+        @media (max-width: 1360px) {
             body { height: auto !important; overflow: auto !important; }
             .main-container { height: auto !important; overflow: visible !important; }
             .content-body { height: auto !important; overflow: visible !important; display: block !important; }
@@ -1452,13 +1453,23 @@ if (isset($_GET['ajax_fetch_stats'])) {
         });
         
         initCharts();
+
+        const dashboardGrid = document.querySelector('.dashboard-grid');
+        if (dashboardGrid && window.ResizeObserver) {
+            const resizeCharts = () => {
+                if (populationChart) populationChart.resize();
+                if (purokChart) purokChart.resize();
+            };
+            const observer = new ResizeObserver(() => {
+                window.requestAnimationFrame(resizeCharts);
+            });
+            observer.observe(dashboardGrid);
+        }
     });
 </script>
 
 </body>
 </html>
-
-
 
 
 

@@ -1,11 +1,18 @@
 <?php
 include('db.php');
+include_once('toast_helpers.php');
 session_start();
 
 $allowed_roles = ['Barangay Captain', 'Captain', 'Secretary'];
 if(!isset($_SESSION['role']) || !in_array($_SESSION['role'], $allowed_roles, true)) {
     header("Location: login.php");
     exit();
+}
+
+$page_toasts = [];
+if (!empty($_SESSION['toast_error'])) {
+    $page_toasts[] = app_toast_from_message($_SESSION['toast_error']);
+    unset($_SESSION['toast_error']);
 }
 
 $proof_col_exists = false;
@@ -16,11 +23,27 @@ if ($proof_col_check && mysqli_num_rows($proof_col_check) > 0) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['restore_id'])) {
     $restore_id = (int)$_POST['restore_id'];
-    $update = "UPDATE residents SET is_archived = 0, archive_reason = NULL, status = 'Active' WHERE id = '$restore_id'";
-    if (mysqli_query($conn, $update)) {
-        $action_desc = mysqli_real_escape_string($conn, "Restored resident #$restore_id from archive");
-        mysqli_query($conn, "INSERT INTO logs (action) VALUES ('$action_desc')");
+
+    $resident_query = mysqli_query($conn, "SELECT id, status, archive_reason FROM residents WHERE id = '$restore_id' AND COALESCE(is_archived, 0) = 1 LIMIT 1");
+    $resident = $resident_query ? mysqli_fetch_assoc($resident_query) : null;
+
+    if ($resident) {
+        $status = strtolower(trim((string)($resident['status'] ?? '')));
+        $archive_reason = strtolower(trim((string)($resident['archive_reason'] ?? '')));
+
+        if ($status === 'deceased' || $archive_reason === 'deceased') {
+            $_SESSION['toast_error'] = 'Residents archived as Deceased cannot be restored.';
+            header("Location: archived_residents.php");
+            exit();
+        }
+
+        $update = "UPDATE residents SET is_archived = 0, archive_reason = NULL, status = 'Active' WHERE id = '$restore_id'";
+        if (mysqli_query($conn, $update)) {
+            $action_desc = mysqli_real_escape_string($conn, "Restored resident #$restore_id from archive");
+            mysqli_query($conn, "INSERT INTO logs (action) VALUES ('$action_desc')");
+        }
     }
+
     header("Location: archived_residents.php");
     exit();
 }
@@ -67,7 +90,7 @@ $result = mysqli_query($conn, $query);
         .logout-btn { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 20px; color: #ef4444; text-decoration: none; font-weight: 600; font-size: 16px; }
 
         .content-body { padding: 16px 20px 20px; }
-        .panel { background: white; padding: 18px; border-radius: 20px; border: 1px solid #e2e8f0; }
+        .panel { background: white; padding: 18px; border-radius: 20px; border: 1px solid #e2e8f0; overflow-x: auto; }
         .controls { display: flex; justify-content: space-between; margin-bottom: 25px; align-items: center; }
         .search-input { padding: 12px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 15px; outline: none; width: 350px; }
         .search-input:focus { border-color: var(--accent-blue); }
@@ -79,13 +102,12 @@ $result = mysqli_query($conn, $query);
         .reason-badge { padding: 6px 14px; border-radius: 20px; background: #fee2e2; color: #991b1b; font-size: 12px; font-weight: 600; }
 
         .btn-restore { background: var(--accent-blue); color: white; border: none; padding: 10px 20px; border-radius: 12px; font-weight: 600; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+        .restore-locked { background: #e2e8f0; color: #64748b; border: none; padding: 10px 14px; border-radius: 12px; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
         .proof-link { display: inline-flex; align-items: center; gap: 7px; padding: 8px 12px; border-radius: 10px; background: #eff6ff; color: #1d4ed8; font-size: 13px; font-weight: 700; text-decoration: none; white-space: nowrap; }
         .proof-empty { color: #94a3b8; font-size: 13px; font-style: italic; white-space: nowrap; }
 
         .empty-state { text-align: center; padding: 60px 20px; color: var(--text-gray); }
         .empty-state i { font-size: 48px; margin-bottom: 4px; color: #cbd5e1; display: block; }
-
-        /* --- MODAL --- */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 999; align-items: center; justify-content: center; }
         .modal-content { background: white; border-radius: 24px; width: 450px; max-width: 90%; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); transform: scale(0.95); transition: transform 0.2s ease-out; }
         .modal-overlay.show .modal-content { transform: scale(1); }
@@ -99,11 +121,84 @@ $result = mysqli_query($conn, $query);
         .btn-cancel:hover { background: #f8fafc; color: #1e293b; border-color: #cbd5e1; }
         .btn-confirm-restore { padding: 12px 24px; border-radius: 12px; border: none; background: var(--accent-blue); color: white; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 6px -1px rgba(130, 78, 57, 0.2); }
         .btn-confirm-restore:hover { background: var(--accent-blue-hover); transform: translateY(-1px); box-shadow: 0 10px 15px -3px rgba(130, 78, 57, 0.3); }
+
+        @media (max-width: 768px) {
+            .main-container { min-width: 0; }
+            .top-header { align-items: flex-start; }
+            .panel { padding: 14px; border-radius: 16px; overflow-x: visible; }
+            .controls { display: block; margin-bottom: 16px; }
+            .controls form { width: 100%; }
+            .search-input { width: 100%; box-sizing: border-box; }
+
+            .archive-table,
+            .archive-table tbody,
+            .archive-table tr,
+            .archive-table td {
+                display: block;
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .archive-table thead { display: none; }
+            .archive-table tbody { display: flex; flex-direction: column; gap: 12px; }
+            .archive-table tr.data-row {
+                border: 1px solid #e2e8f0;
+                border-radius: 14px;
+                background: #ffffff;
+                overflow: hidden;
+            }
+            .archive-table td {
+                display: grid;
+                grid-template-columns: minmax(110px, 38%) 1fr;
+                gap: 12px;
+                align-items: center;
+                padding: 12px 14px;
+                border-bottom: 1px solid #f1f5f9;
+                font-size: 14px;
+                overflow-wrap: anywhere;
+            }
+            .archive-table tr.data-row td:last-child { border-bottom: none; }
+            .archive-table td::before {
+                content: attr(data-label);
+                color: #64748b;
+                font-size: 11px;
+                font-weight: 700;
+                text-transform: uppercase;
+            }
+            .archive-table tr.empty-row { display: block; }
+            .archive-table tr.empty-row td {
+                display: block;
+                padding: 0;
+                border: 0;
+            }
+            .archive-table tr.empty-row td::before { display: none; }
+            .btn-restore,
+            .restore-locked,
+            .proof-link {
+                width: 100%;
+                justify-content: center;
+                box-sizing: border-box;
+            }
+            .modal-content { width: calc(100vw - 32px); border-radius: 18px; }
+            .modal-body { padding: 24px 18px; }
+            .confirm-actions { flex-direction: column; }
+            .confirm-actions button { width: 100%; }
+        }
+
+        @media (max-width: 480px) {
+            .archive-table td {
+                grid-template-columns: 1fr;
+                gap: 6px;
+                align-items: start;
+            }
+            .empty-state { padding: 36px 14px; }
+        }
     </style>
 </head>
 <body>
 
 <?php include_once('left_navbar.php'); ?>
+<?php render_app_toasts($page_toasts); ?>
 
 <div class="main-container">
     <header class="top-header">
@@ -139,7 +234,7 @@ $result = mysqli_query($conn, $query);
                 </form>
             </div>
 
-            <table id="archiveTable">
+            <table id="archiveTable" class="archive-table">
                 <thead>
                     <tr>
                         <th>Resident Name</th>
@@ -158,15 +253,20 @@ $result = mysqli_query($conn, $query);
                     <?php $has_rows = $result && mysqli_num_rows($result) > 0; ?>
                     <?php if($has_rows): ?>
                         <?php while($row = mysqli_fetch_assoc($result)): ?>
+                        <?php
+                            $row_status = strtolower(trim((string)($row['status'] ?? '')));
+                            $row_archive_reason = strtolower(trim((string)($row['archive_reason'] ?? '')));
+                            $is_deceased_archive = $row_status === 'deceased' || $row_archive_reason === 'deceased';
+                        ?>
                         <tr class="data-row">
-                            <td><strong><?php echo htmlspecialchars($row['last_name'] . ', ' . $row['first_name'] . ($row['middle_name'] ? ' ' . $row['middle_name'] : '')); ?></strong></td>
-                            <td><?php echo htmlspecialchars($row['household_no'] ?? 'N/A'); ?></td>
-                            <td><?php echo htmlspecialchars($row['age'] ?? 'N/A'); ?></td>
-                            <td><?php echo htmlspecialchars($row['gender'] ?? 'N/A'); ?></td>
-                            <td><span class="reason-badge"><?php echo htmlspecialchars($row['status'] ?? 'N/A'); ?></span></td>
-                             <td><?php echo htmlspecialchars($row['archive_reason'] ?? 'N/A'); ?></td>
+                            <td data-label="Resident Name"><strong><?php echo htmlspecialchars($row['last_name'] . ', ' . $row['first_name'] . ($row['middle_name'] ? ' ' . $row['middle_name'] : '')); ?></strong></td>
+                            <td data-label="Household No."><?php echo htmlspecialchars($row['household_no'] ?? 'N/A'); ?></td>
+                            <td data-label="Age"><?php echo htmlspecialchars($row['age'] ?? 'N/A'); ?></td>
+                            <td data-label="Gender"><?php echo htmlspecialchars($row['gender'] ?? 'N/A'); ?></td>
+                            <td data-label="Status"><span class="reason-badge"><?php echo htmlspecialchars($row['status'] ?? 'N/A'); ?></span></td>
+                             <td data-label="Reason"><?php echo htmlspecialchars($row['archive_reason'] ?? 'N/A'); ?></td>
                              <?php if ($proof_col_exists): ?>
-                                 <td>
+                                 <td data-label="Deceased Proof">
                                      <?php
                                          $proof_path = trim((string)($row['deceased_proof_path'] ?? ''));
                                          $has_deceased_proof = $proof_path !== '' && (($row['status'] ?? '') === 'Deceased' || ($row['archive_reason'] ?? '') === 'Deceased');
@@ -180,11 +280,17 @@ $result = mysqli_query($conn, $query);
                                      <?php endif; ?>
                                  </td>
                              <?php endif; ?>
-                             <td>
+                             <td data-label="Actions">
                                  <?php if ($_SESSION['role'] === 'Secretary'): ?>
-                                     <button type="button" class="btn-restore" onclick="openRestoreModal(<?php echo (int)$row['id']; ?>, '<?php echo htmlspecialchars(addslashes($row['last_name'] . ', ' . $row['first_name'])); ?>')">
-                                         <i class="fa-solid fa-rotate-left"></i> Restore
-                                     </button>
+                                     <?php if ($is_deceased_archive): ?>
+                                         <span class="restore-locked" title="Deceased resident records cannot be restored.">
+                                             <i class="fa-solid fa-lock"></i> Cannot Restore
+                                         </span>
+                                     <?php else: ?>
+                                         <button type="button" class="btn-restore" onclick="openRestoreModal(<?php echo (int)$row['id']; ?>, '<?php echo htmlspecialchars(addslashes($row['last_name'] . ', ' . $row['first_name'])); ?>')">
+                                             <i class="fa-solid fa-rotate-left"></i> Restore
+                                         </button>
+                                     <?php endif; ?>
                                  <?php else: ?>
                                      <span style="color: #94a3b8; font-size: 13px; font-style: italic;"><i class="fa-solid fa-lock"></i> View Only</span>
                                  <?php endif; ?>
@@ -192,7 +298,7 @@ $result = mysqli_query($conn, $query);
                         </tr>
                         <?php endwhile; ?>
                     <?php endif; ?>
-                    <tr id="archiveNoResults" style="<?php echo $has_rows ? 'display: none;' : ''; ?>">
+                    <tr id="archiveNoResults" class="empty-row" style="<?php echo $has_rows ? 'display: none;' : ''; ?>">
                         <td colspan="<?php echo $proof_col_exists ? 8 : 7; ?>">
                             <div class="empty-state">
                                 <i class="fa-solid fa-box-archive"></i>
@@ -205,8 +311,6 @@ $result = mysqli_query($conn, $query);
         </div>
     </div>
 </div>
-
-<!-- Restore Confirmation Modal -->
 <div class="modal-overlay" id="restoreModal">
     <div class="modal-content">
         <div class="modal-body">
@@ -305,9 +409,3 @@ $result = mysqli_query($conn, $query);
 </script>
 </body>
 </html>
-
-
-
-
-
-
